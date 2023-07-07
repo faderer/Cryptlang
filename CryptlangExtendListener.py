@@ -52,7 +52,7 @@ class CryptlangExtendListener(CryptlangListener):
         with open(self.output_file, 'a') as f:
             f.write(self.addTabs() + "library Pedersen {\n")
             # print the modExp function
-            f.write(self.addTabs() + "\tfunction modExp(uint256 base, uint256 exponent, uint256 modulus) internal pure returns (uint256) {\n")
+            f.write(self.addTabs() + "\tfunction modExp(uint256 base, uint256 exponent, uint256 modulus) internal view returns (uint256) {\n")
             f.write(self.addTabs() + "\t\tuint256 result;\n")
             f.write(self.addTabs() + "\t\tassembly {\n")
             f.write(self.addTabs() + "\t\t\tlet memPtr := mload(0x40)\n")
@@ -117,7 +117,7 @@ class CryptlangExtendListener(CryptlangListener):
             elif self.cryptoSignal == 3:
                 if self.commitmentMethod == "Pedersen":
                     f.write(self.addTabs() + "using Pedersen for uint256;\n")
-    
+
     def exitContractDefinition(self, ctx):
         self.depth -= 1
         with open(self.output_file, 'a') as f:
@@ -267,7 +267,7 @@ class CryptlangExtendListener(CryptlangListener):
                     f.write(self.addTabs() + "uint256 q = 21888242871839275222246405745257275088548364400416034343698204186575808495617;\n")
                     f.write(self.addTabs() + "uint256 g = 7;\n")
                     f.write(self.addTabs() + "uint256 h = uint256(" + self.hashMethod + "(abi.encodePacked(randomness)));\n")
-                    f.write(self.addTabs() + "uint256 c = (modExp(g, value, q) * modExp(h, randomness, q)) % q;\n")
+                    f.write(self.addTabs() + "uint256 c = (Pedersen.modExp(g, value, q) * Pedersen.modExp(h, randomness, q)) % q;\n")
                     f.write(self.addTabs() + "require(" + self.commitmentParams[0] + " == c);\n")
                 elif self.commitmentMethod == "Merkel":
                     f.write(self.addTabs() + "bytes32 computedHash = keccak256(abi.encodePacked(leaf));\n")
