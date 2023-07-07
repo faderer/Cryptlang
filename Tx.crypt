@@ -1,0 +1,8 @@
+pragma Cryptlang ^0.0.1;
+contract verifyTransaction {
+    function verifyMerkleProof(bytes32 root) public pure {
+        // explicitly indicate the owner of the signature, by default it is the sender
+        @require(Merkel, root);
+        // transfer token
+    }
+}

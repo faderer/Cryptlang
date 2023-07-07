@@ -139,7 +139,7 @@ COMMENT=138
 LINE_COMMENT=139
 'pragma'=1
 ';'=2
-'Cryplang'=3
+'Cryptlang'=3
 '^'=4
 '~'=5
 '>='=6
