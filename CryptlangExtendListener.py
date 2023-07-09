@@ -40,34 +40,125 @@ class CryptlangExtendListener(CryptlangListener):
     # print the ECDSA library
     def printECDSALibrary(self):
         with open(self.output_file, 'a') as f:
-            f.write(self.addTabs() + "library ECDSA {\n")
-            f.write(self.addTabs() + "\tfunction recover(bytes32 hash, bytes memory sig) internal pure returns (address) {\n")
-            f.write(self.addTabs() + "\t\t(bytes32 r, bytes32 s, uint8 v) = abi.decode(sig, (bytes32, bytes32, uint8));\n")
-            f.write(self.addTabs() + "\t\treturn ecrecover(hash, v, r, s);\n")
-            f.write(self.addTabs() + "\t}\n")
-            f.write(self.addTabs() + "}\n")
-    
+            content = '''library ECDSA {
+    enum RecoverError {
+        NoError,
+        InvalidSignature,
+        InvalidSignatureLength,
+        InvalidSignatureS
+    }
+    error ECDSAInvalidSignature();
+    error ECDSAInvalidSignatureLength(uint256 length);
+    error ECDSAInvalidSignatureS(bytes32 s);
+
+    function tryRecover(bytes32 hash, bytes memory signature) internal pure returns (address, RecoverError, bytes32) {
+        if (signature.length == 65) {
+            bytes32 r;
+            bytes32 s;
+            uint8 v;
+            assembly {
+                r := mload(add(signature, 0x20))
+                s := mload(add(signature, 0x40))
+                v := byte(0, mload(add(signature, 0x60)))
+            }
+            return tryRecover(hash, v, r, s);
+        } else {
+            return (address(0), RecoverError.InvalidSignatureLength, bytes32(signature.length));
+        }
+    }
+
+    function recover(bytes32 hash, bytes memory signature) internal pure returns (address) {
+        (address recovered, RecoverError error, bytes32 errorArg) = tryRecover(hash, signature);
+        _throwError(error, errorArg);
+        return recovered;
+    }
+
+    function tryRecover(bytes32 hash, bytes32 r, bytes32 vs) internal pure returns (address, RecoverError, bytes32) {
+        unchecked {
+            bytes32 s = vs & bytes32(0x7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff);
+
+            uint8 v = uint8((uint256(vs) >> 255) + 27);
+            return tryRecover(hash, v, r, s);
+        }
+    }
+
+    function recover(bytes32 hash, bytes32 r, bytes32 vs) internal pure returns (address) {
+        (address recovered, RecoverError error, bytes32 errorArg) = tryRecover(hash, r, vs);
+        _throwError(error, errorArg);
+        return recovered;
+    }
+
+    function tryRecover(
+        bytes32 hash,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
+    ) internal pure returns (address, RecoverError, bytes32) {
+        if (uint256(s) > 0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5D576E7357A4501DDFE92F46681B20A0) {
+            return (address(0), RecoverError.InvalidSignatureS, s);
+        }
+
+        address signer = ecrecover(hash, v, r, s);
+        if (signer == address(0)) {
+            return (address(0), RecoverError.InvalidSignature, bytes32(0));
+        }
+
+        return (signer, RecoverError.NoError, bytes32(0));
+    }
+
+    function recover(bytes32 hash, uint8 v, bytes32 r, bytes32 s) internal pure returns (address) {
+        (address recovered, RecoverError error, bytes32 errorArg) = tryRecover(hash, v, r, s);
+        _throwError(error, errorArg);
+        return recovered;
+    }
+
+    function _throwError(RecoverError error, bytes32 errorArg) private pure {
+        if (error == RecoverError.NoError) {
+            return; // no error: do nothing
+        } else if (error == RecoverError.InvalidSignature) {
+            revert ECDSAInvalidSignature();
+        } else if (error == RecoverError.InvalidSignatureLength) {
+            revert ECDSAInvalidSignatureLength(uint256(errorArg));
+        } else if (error == RecoverError.InvalidSignatureS) {
+            revert ECDSAInvalidSignatureS(errorArg);
+        }
+    }
+}
+'''
+            modified_content = content.replace("\n", "\n" + self.addTabs())
+            f.write(modified_content)
+
+    # print the BLS library
+
+
     # print the Pedersen library
     def printPedersenLibrary(self):
         with open(self.output_file, 'a') as f:
-            f.write(self.addTabs() + "library Pedersen {\n")
             # print the modExp function
-            f.write(self.addTabs() + "\tfunction modExp(uint256 base, uint256 exponent, uint256 modulus) internal view returns (uint256) {\n")
-            f.write(self.addTabs() + "\t\tuint256 result;\n")
-            f.write(self.addTabs() + "\t\tassembly {\n")
-            f.write(self.addTabs() + "\t\t\tlet memPtr := mload(0x40)\n")
-            f.write(self.addTabs() + "\t\t\tmstore(memPtr, base)\n")
-            f.write(self.addTabs() + "\t\t\tmstore(add(memPtr, 0x20), exponent)\n")
-            f.write(self.addTabs() + "\t\t\tmstore(add(memPtr, 0x40), modulus)\n")
-            f.write(self.addTabs() + "\t\t\tif iszero(staticcall(not(0), 0x05, memPtr, 0x60, memPtr, 0x20)) {\n")
-            f.write(self.addTabs() + "\t\t\t\trevert(0, 0)\n")
-            f.write(self.addTabs() + "\t\t\t}\n")
-            f.write(self.addTabs() + "\t\t\tresult := mload(memPtr)\n")
-            f.write(self.addTabs() + "\t\t}\n")
-            f.write(self.addTabs() + "\t\treturn result;\n")
-            f.write(self.addTabs() + "\t}\n")
-            f.write(self.addTabs() + "}\n")
+            content = '''library Pedersen {
+    function modExp(uint256 base, uint256 exponent, uint256 modulus) internal view returns (uint256 result) {
+        assembly {
+            let memPtr := mload(0x40)
+            mstore(memPtr, 0x20)
+            mstore(add(memPtr, 0x20), 0x20)
+            mstore(add(memPtr, 0x40), 0x20)
+            mstore(add(memPtr, 0x60), base)
+            mstore(add(memPtr, 0x80), exponent)
+            mstore(add(memPtr, 0xa0), modulus)
 
+            let success := staticcall(gas(), 0x05, memPtr, 0xc0, memPtr, 0x20)
+            switch success
+            case 0 {
+                revert(0x0, 0x0)
+            } default {
+                result := mload(memPtr)
+            }
+        }
+    }
+}
+'''
+            modified_content = content.replace("\n", "\n" + self.addTabs())
+            f.write(modified_content)
 
     def enterPragmaDirective(self, ctx):
         if self.cryptoSignal != 2:
@@ -215,7 +306,12 @@ class CryptlangExtendListener(CryptlangListener):
                 self.cryptoSignal = 3
             # if there is hash method, store it
             if ctx.getChildCount() == 4:
-                self.hashMethod = ctx.getChild(2).getText()
+                if ctx.getChild(2).getText() == "SHA3-256":
+                    self.hashMethod = "keccak256"
+                elif ctx.getChild(2).getText() == "SHA2-256":
+                    self.hashMethod = "sha256"
+                elif ctx.getChild(2).getText() == "RIPEMD-160":
+                    self.hashMethod = "ripemd160"
             else:
                 self.hashMethod = "keccak256"
     
