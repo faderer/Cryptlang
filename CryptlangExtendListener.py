@@ -129,8 +129,56 @@ class CryptlangExtendListener(CryptlangListener):
             f.write(modified_content)
 
     # print the BLS library
+    def printBLSLibrary(self):
+        with open(self.output_file, 'a') as f:
+            content = '''import { BLS } from "./BLS.sol";
 
+library BLSOpen {
+    function verifySingle(
+        uint256[2] memory signature,
+        uint256[4] memory pubkey,
+        uint256[2] memory message
+    ) external view returns (bool) {
+        uint256[4][] memory pubkeys = new uint256[4][](1);
+        uint256[2][] memory messages = new uint256[2][](1);
+        pubkeys[0] = pubkey;
+        messages[0] = message;
 
+        (bool verified, bool callSuccess) =  BLS.verifyMultiple(
+            signature,
+            pubkeys,
+            messages
+        );
+        return callSuccess && verified;
+    }
+
+    function verifyMultiple(
+        uint256[2] memory signature,
+        uint256[4][] memory pubkeys,
+        uint256[2][] memory messages
+    ) external view returns (bool) {
+        (bool verified, bool callSuccess) =  BLS.verifyMultiple(
+            signature,
+            pubkeys,
+            messages
+        );
+        return callSuccess && verified;
+    }
+
+    function hashToPoint(
+        bytes memory message
+    ) external view returns (uint256[2] memory) {
+        return BLS.hashToPoint(
+            bytes32(BLS.N),
+            message
+        );
+    }
+
+}
+'''
+            modified_content = content.replace("\n", "\n" + self.addTabs())
+            f.write(modified_content)
+    
     # print the Pedersen library
     def printPedersenLibrary(self):
         with open(self.output_file, 'a') as f:
@@ -174,6 +222,8 @@ class CryptlangExtendListener(CryptlangListener):
             if self.cryptoSignal == 1:
                 if self.signatureMethod == "ECDSA":
                     self.printECDSALibrary()
+                elif self.signatureMethod == "BLS":
+                    self.printBLSLibrary()
             # if cryptoSignal == 2, print the verifier contract
             elif self.cryptoSignal == 2:
                 if self.proofMethod == "Groth16":
@@ -203,7 +253,12 @@ class CryptlangExtendListener(CryptlangListener):
             if self.cryptoSignal == 1:
                 if self.signatureMethod == "ECDSA":
                     f.write(self.addTabs() + "using ECDSA for bytes32;\n")
-                f.write(self.addTabs() + "mapping(address => uint256) public nonce;\n")
+                    f.write(self.addTabs() + "mapping(address => uint256) public nonce;\n")
+                elif self.signatureMethod == "BLS":
+                    f.write(self.addTabs() + "using BLSOpen for *;\n")
+                    f.write(self.addTabs() + "mapping(address => uint256) public nonce;\n")
+                    f.write(self.addTabs() + "mapping (address => uint256[4]) public pubkey;\n")
+
             # if cryptoSignal == 3, print the commitment library
             elif self.cryptoSignal == 3:
                 if self.commitmentMethod == "Pedersen":
@@ -230,7 +285,10 @@ class CryptlangExtendListener(CryptlangListener):
 
         # if cryptoSignal == 1, print the signature parameter. Otherwise, print the proof parameter
         if self.cryptoSignal == 1:
-            output += ",bytes memory sig)"
+            if self.signatureMethod == "ECDSA":
+                output += ",bytes memory sig)"
+            elif self.signatureMethod == "BLS":
+                output += ",uint256[2] memory sig)"
         elif self.cryptoSignal == 2:
             output += ",Proof memory proof)"
         elif self.cryptoSignal == 3:
@@ -319,17 +377,35 @@ class CryptlangExtendListener(CryptlangListener):
         elif self.cryptoSignal == 1:
             with open(self.output_file, 'a') as f:
                 # print the hash of the signature parameters, nonce and address of the contract
-                f.write(self.addTabs() + "bytes32 hash = " + self.hashMethod + "(abi.encodePacked(")
-                for i in range(len(self.signatureParams)):
-                    f.write(self.signatureParams[i] + ", ")
-                if self.signatureOwner != "":
-                    f.write("nonce[" + self.signatureOwner + "], address(this)));\n")
-                else:
-                    f.write("nonce[msg.sender] + address(this)))\n")
+                if self.signatureMethod == "ECDSA":
+                    f.write(self.addTabs() + "bytes32 hash = " + self.hashMethod + "(abi.encodePacked(")
+                    for i in range(len(self.signatureParams)):
+                        f.write(self.signatureParams[i] + ", ")
+                    if self.signatureOwner != "":
+                        f.write("nonce[" + self.signatureOwner + "], address(this)));\n")
+                    else:
+                        f.write("nonce[msg.sender] + address(this)))\n")
+                elif self.signatureMethod == "BLS":
+                    f.write(self.addTabs() + "bytes memory hash = abi.encodePacked(" + self.hashMethod + "(abi.encodePacked(")
+                    for i in range(len(self.signatureParams)):
+                        f.write(self.signatureParams[i] + ", ")
+                    if self.signatureOwner != "":
+                        f.write("nonce[" + self.signatureOwner + "], address(this))));\n")
+                    else:
+                        f.write("nonce[msg.sender] + address(this))));\n")
+                    f.write(self.addTabs() + "uint256[2] memory message = BLSOpen.hashToPoint(hash);\n")
                 
                 # print the require statement depending on the signature method
                 if self.signatureMethod == "ECDSA":
-                    f.write(self.addTabs() + "require(ECDSA.recover(hash, sig) == " + self.signatureOwner + ");\n")
+                    if self.signatureOwner != "":
+                        f.write(self.addTabs() + "require(ECDSA.recover(hash, sig) == " + self.signatureOwner + ");\n")
+                    else:
+                        f.write(self.addTabs() + "require(ECDSA.recover(hash, sig) == msg.sender);\n")
+                elif self.signatureMethod == "BLS":
+                    if self.signatureOwner != "":
+                        f.write(self.addTabs() + "require(BLSOpen.verifySingle(sig, pubkey[" + self.signatureOwner + "], message));\n")
+                    else:
+                        f.write(self.addTabs() + "require(BLSOpen.verifySingle(sig, pubkey[msg.sender], message));\n")
                 
                 # update the nonce
                 if self.signatureOwner != "":
