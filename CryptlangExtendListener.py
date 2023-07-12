@@ -1,6 +1,7 @@
 from CryptlangListener import CryptlangListener
 from CryptlangParser import CryptlangParser
 import subprocess
+import os
 
 class CryptlangExtendListener(CryptlangListener):
     # parameter: record the type of crypto statement
@@ -179,6 +180,43 @@ library BLSOpen {
             modified_content = content.replace("\n", "\n" + self.addTabs())
             f.write(modified_content)
     
+    # print the Schnorr library
+    def printSchnorrLibrary(self):
+        with open(self.output_file, 'a') as f:
+            content = '''library Schnorr {
+  // secp256k1 group order
+  uint256 constant public Q =
+    0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141;
+
+  // parity := public key y-coord parity (27 or 28)
+  // px := public key x-coord
+  // message := 32-byte message
+  // e := schnorr signature challenge
+  // s := schnorr signature
+  function verify(
+    uint8 parity,
+    bytes32 px,
+    bytes32 message,
+    bytes32 e,
+    bytes32 s
+  ) public pure returns (bool) {
+    // ecrecover = (m, v, r, s);
+    bytes32 sp = bytes32(Q - mulmod(uint256(s), uint256(px), Q));
+    bytes32 ep = bytes32(Q - mulmod(uint256(e), uint256(px), Q));
+
+    require(sp != 0);
+    // the ecrecover precompile implementation checks that the `r` and `s`
+    // inputs are non-zero (in this case, `px` and `ep`), thus we don't need to
+    // check if they're zero.
+    address R = ecrecover(sp, parity, px, ep);
+    require(R != address(0), "ecrecover failed");
+    return e == keccak256(
+      abi.encodePacked(R, uint8(parity), px, message)
+    );
+  }
+}
+'''
+
     # print the Pedersen library
     def printPedersenLibrary(self):
         with open(self.output_file, 'a') as f:
@@ -224,12 +262,19 @@ library BLSOpen {
                     self.printECDSALibrary()
                 elif self.signatureMethod == "BLS":
                     self.printBLSLibrary()
+                elif self.signatureMethod == "Schnorr":
+                    self.printSchnorrLibrary()
             # if cryptoSignal == 2, print the verifier contract
             elif self.cryptoSignal == 2:
                 if self.proofMethod == "Groth16":
-                    #self.invokeZokrates()
-                    with open("verifier.sol", 'r') as f2:
+                    # self.invokeZokrates()
+                    with open("Groth16/verifier.sol", 'r') as f2:
                         f.write(f2.read())
+                if self.proofMethod == "PLONK":
+                    # self.invokeCircom()
+                    with open("PLONK/verifier.sol", 'r') as f2:
+                        f.write(f2.read())
+                        f.write("\n")
             # if cryptoSignal == 3, print the Commitment library
             elif self.cryptoSignal == 3:
                 if self.commitmentMethod == "Pedersen":
@@ -258,6 +303,9 @@ library BLSOpen {
                     f.write(self.addTabs() + "using BLSOpen for *;\n")
                     f.write(self.addTabs() + "mapping(address => uint256) public nonce;\n")
                     f.write(self.addTabs() + "mapping (address => uint256[4]) public pubkey;\n")
+                elif self.signatureMethod == "Schnorr":
+                    f.write(self.addTabs() + "using Schnorr for *;\n")
+                    f.write(self.addTabs() + "mapping(address => uint256) public nonce;\n")
 
             # if cryptoSignal == 3, print the commitment library
             elif self.cryptoSignal == 3:
@@ -290,7 +338,10 @@ library BLSOpen {
             elif self.signatureMethod == "BLS":
                 output += ",uint256[2] memory sig)"
         elif self.cryptoSignal == 2:
-            output += ",Proof memory proof)"
+            if self.proofMethod == "Groth16":
+                output += ",Proof memory proof)"
+            elif self.proofMethod == "PLONK":
+                output += ",uint256[24] calldata proof)"
         elif self.cryptoSignal == 3:
             if self.commitmentMethod == "Pedersen":
                 output += ",uint256 value, uint256 randomness)"
@@ -323,12 +374,18 @@ library BLSOpen {
     def exitFunctionDefinition(self, ctx):
         if self.cryptoSignal == 2:
             with open(self.output_file, 'a') as f:
-                f.write(self.addTabs() + "function compareProof(Proof memory first, Proof memory second) internal pure returns (bool) {\n")
-                f.write(self.addTabs() + "\tbytes32 hash1 = keccak256(abi.encodePacked(first.a.X, first.a.Y, first.b.X, first.b.Y, first.c.X, first.c.Y));\n")
-                f.write(self.addTabs() + "\tbytes32 hash2 = keccak256(abi.encodePacked(second.a.X, second.a.Y, second.b.X, second.b.Y, second.c.X, second.c.Y));\n")
-                f.write(self.addTabs() + "\treturn hash1 != hash2;\n")
-                f.write(self.addTabs() + "}\n")
-
+                if self.proofMethod == 'Groth16':
+                    f.write(self.addTabs() + "function compareProof(Proof memory first, Proof memory second) internal pure returns (bool) {\n")
+                    f.write(self.addTabs() + "\tbytes32 hash1 = keccak256(abi.encodePacked(first.a.X, first.a.Y, first.b.X, first.b.Y, first.c.X, first.c.Y));\n")
+                    f.write(self.addTabs() + "\tbytes32 hash2 = keccak256(abi.encodePacked(second.a.X, second.a.Y, second.b.X, second.b.Y, second.c.X, second.c.Y));\n")
+                    f.write(self.addTabs() + "\treturn hash1 != hash2;\n")
+                    f.write(self.addTabs() + "}\n")
+                elif self.proofMethod == 'PLONK':
+                    f.write(self.addTabs() + "function compareProof(uint256[24] memory first, uint256[24] memory second) internal pure returns (bool) {\n")
+                    f.write(self.addTabs() + "\tbytes32 hash1 = keccak256(abi.encodePacked(first));\n")
+                    f.write(self.addTabs() + "\tbytes32 hash2 = keccak256(abi.encodePacked(second));\n")
+                    f.write(self.addTabs() + "\treturn hash1 != hash2;\n")
+                    f.write(self.addTabs() + "}\n")
     def enterBlock(self, ctx):
         with open(self.output_file, 'a') as f:
             f.write(self.addTabs() + "{\n")
@@ -417,20 +474,35 @@ library BLSOpen {
         elif self.cryptoSignal == 2:
             with open(self.output_file, 'r+') as f:
                 file_content = f.read()
-                if "using Pairing for *;" in file_content:
-                    index = file_content.index("using Pairing for *;")
-                    f.seek(index + len("using Pairing for *;") + 1)
-                    rest_of_file = f.read()
-                    f.seek(index + len("using Pairing for *;") + 1)
-                    f.write("\tProof[] public proofs;\n")
-                    f.write(rest_of_file)
-
+                if self.proofMethod == "Groth16":
+                    if "using Pairing for *;" in file_content:
+                        index = file_content.index("using Pairing for *;")
+                        f.seek(index + len("using Pairing for *;") + 1)
+                        rest_of_file = f.read()
+                        f.seek(index + len("using Pairing for *;") + 1)
+                        f.write("\tProof[] public proofs;\n")
+                        f.write(rest_of_file)
+                elif self.proofMethod == "PLONK":
+                    if "contract PlonkVerifier {" in file_content:
+                        index = file_content.index("contract PlonkVerifier {")
+                        f.seek(index + len("contract PlonkVerifier {") + 1)
+                        rest_of_file = f.read()
+                        f.seek(index + len("contract PlonkVerifier {") + 1)
+                        f.write("\tuint256[24][] public proofs;\n")
+                        f.write(rest_of_file)
             with open(self.output_file, 'a') as f:
-                f.write(self.addTabs() + "for(uint i = 0; i < proofs.length; i++){\n")
-                f.write(self.addTabs() + "\trequire(compareProof(proof,proofs[i]));\n")
-                f.write(self.addTabs() + "}\n")
-                f.write(self.addTabs() + "require(verifyTx(proof, [" + ",".join(self.proofParams) + "]));\n")
-                f.write(self.addTabs() + "proofs.push(proof);\n")
+                if self.proofMethod == "Groth16":
+                    f.write(self.addTabs() + "for(uint i = 0; i < proofs.length; i++){\n")
+                    f.write(self.addTabs() + "\trequire(compareProof(proof,proofs[i]));\n")
+                    f.write(self.addTabs() + "}\n")
+                    f.write(self.addTabs() + "require(verifyTx(proof, [" + ",".join(self.proofParams) + "]));\n")
+                    f.write(self.addTabs() + "proofs.push(proof);\n")
+                elif self.proofMethod == "PLONK":
+                    f.write(self.addTabs() + "for(uint i = 0; i < proofs.length; i++){\n")
+                    f.write(self.addTabs() + "\trequire(compareProof(proof,proofs[i]));\n")
+                    f.write(self.addTabs() + "}\n")
+                    f.write(self.addTabs() + "require(this.verifyProof(proof, [" + ",".join(self.proofParams) + "]));\n")
+                    f.write(self.addTabs() + "proofs.push(proof);\n")
         
         # if cryptoSignal == 3, print the commitment statement
         elif self.cryptoSignal == 3:
@@ -462,13 +534,39 @@ library BLSOpen {
         # Command-line statements are constructed using the f-string syntax
         command1 = f"/home/xialb/zkp_tools/ZoKrates/target/release/zokrates compile -i {proof_location_without_quotes} -o {proof_location_without_extension}"
         command2 = f"/home/xialb/zkp_tools/ZoKrates/target/release/zokrates setup -i {proof_location_without_extension}"
-        command3 = f"/home/xialb/zkp_tools/ZoKrates/target/release/zokrates export-verifier"
+        command3 = f"/home/xialb/zkp_tools/ZoKrates/target/release/zokrates export-verifier -o Groth16/verifier.sol"
 
         # Execute the command using the subprocess module
         subprocess.run(command1, shell=True, check=True)
         subprocess.run(command2, shell=True, check=True)
         subprocess.run(command3, shell=True, check=True)
-    
+
+    def invokeCircom(self):
+        # Invoke Circom to generate the verification contract
+        proof_location = self.proofLocation
+        proof_location_without_quotes = proof_location.strip('"')
+        proof_location_without_extension = proof_location_without_quotes[:-7]
+
+        # Command-line statements are constructed using the f-string syntax
+        command2 = f"circom {proof_location_without_quotes} --r1cs --wasm --sym"
+        command3 = f"snarkjs powersoftau new bn128 12 pot12_0000.ptau -v"
+        command4 = f"snarkjs powersoftau contribute pot12_0000.ptau pot12_0001.ptau --name=\"First contribution\" -v"
+        command5 = f"snarkjs powersoftau prepare phase2 pot12_0001.ptau pot12_final.ptau -v"
+        command6 = f"snarkjs plonk setup {proof_location_without_extension}.r1cs pot12_final.ptau {proof_location_without_extension}_0000.zkey"
+        command7 = f"snarkjs zkey export verificationkey {proof_location_without_extension}_0000.zkey verification_key.json"
+        command8 = f"snarkjs zkey export solidityverifier {proof_location_without_extension}_0000.zkey verifier.sol"
+
+        # Execute the command using the subprocess module
+        os.chdir(os.getcwd() + "/PLONK")
+        subprocess.run(command2, shell=True, check=True)
+        subprocess.run(command3, shell=True, check=True)
+        subprocess.run(command4, shell=True, check=True)
+        subprocess.run(command5, shell=True, check=True)
+        subprocess.run(command6, shell=True, check=True)
+        subprocess.run(command7, shell=True, check=True)
+        subprocess.run(command8, shell=True, check=True)
+        os.chdir(os.getcwd() + "/..")
+
     def enterSignatureMethod(self, ctx):
         self.signatureMethod = ctx.getText()
     

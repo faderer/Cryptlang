@@ -137,6 +137,8 @@ library BLS {
 
     /**
     @notice Fouque-Tibouchi Hash to Curve
+    @param domain Domain of Field to hash to
+    @param message Message to hash
      */
     function hashToPoint(bytes32 domain, bytes memory message)
         internal
