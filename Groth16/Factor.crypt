@@ -1,8 +1,8 @@
 pragma Cryptlang ^0.0.1;
 contract safeFactor {
-    function factor(uint256 n) public {
+    function factor(uint256 _n) public {
         // the first parameter is the proof scheme, the middle parameters are the input variables(including private and public input), the last parameter is the path of the zok proof file
-        @require(Groth16, #a, #b, n, "factor.zok");
+        @Groth16 with "factor.zok"(#a, #b, _n);
         // factor n
     }
 }

@@ -22,12 +22,12 @@ library Pedersen {
 }
 contract verifyTransaction {
 	using Pedersen for uint256;
-	function verifyMerkleProof (uint256 commitment,uint256 value, uint256 randomness) public view
+	function verifyPedersenCommitment (uint256 _commitment,uint256 value, uint256 randomness) public view
 	{
 		uint256 q = 21888242871839275222246405745257275088548364400416034343698204186575808495617;
 		uint256 g = 7;
 		uint256 h = uint256(sha256(abi.encodePacked(randomness)));
 		uint256 c = (Pedersen.modExp(g, value, q) * Pedersen.modExp(h, randomness, q)) % q;
-		require(commitment == c);
+		require(_commitment == c);
 	}
 }

@@ -171,7 +171,7 @@ expressionStatement
 // ADD: 
 // +crypto statement
 statementSymbol
-  : '@require' ;
+  : '@' ;
 
 privateSymbol
   : '#' ;
@@ -183,29 +183,29 @@ privateIdentifierList
   : ( privateIdentifier? ',' )* privateIdentifier? ;
 
 hashMethod
-  : 'SHA3-256' | 'SHA2-256' | 'RIPEMD160' | 'BLAKE2F' ;
+  : 'SHA3-256' | 'SHA2-256' | 'RIPEMD160' ;
 
 signatureMethod
-  : 'ECDSA' | 'RSA' | 'BLS' | 'Schorr' ;
+  : 'ECDSA' | 'BLS' ;
 
 commitmentMethod
-  : 'Pedersen' | 'Merkel' ;
+  : 'Pedersen' | 'Merkle' ;
 
 proofMethod
-  : 'Groth16' | 'PLONK' | 'GM17' ;
+  : 'Groth16' | 'PLONK' ;
 
 signatureStatement
-  : statementSymbol '(' signatureMethod ',' (identifier? ',')* identifier? ',' primaryExpression? ')';
+  : statementSymbol signatureMethod ('with' hashMethod)? '(' (identifier? ',')* identifier? ',' primaryExpression? ')';
 
 commitmentStatement
-  : statementSymbol '(' commitmentMethod ',' (identifier? ',')* identifier? ')';
+  : statementSymbol commitmentMethod ('with' hashMethod)? '(' (identifier? ',')* identifier? ')';
 
 // momentarily, we only support one zok file address as primaryExpression.
 proofStatement
-  : statementSymbol '(' proofMethod ',' privateIdentifierList ',' primaryExpression ')';
+  : statementSymbol proofMethod 'with' primaryExpression '(' privateIdentifierList ')';
 
 taskStatement
-  : (signatureStatement | commitmentStatement | proofStatement) ('with' hashMethod)? ';' ;
+  : (signatureStatement | commitmentStatement | proofStatement) ';' ;
 
 ifStatement
   : 'if' '(' expression ')' statement ( 'else' statement )? ;

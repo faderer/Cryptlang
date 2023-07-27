@@ -22,7 +22,7 @@ class CryptlangExtendListener(CryptlangListener):
     proofLocation = ""
 
     # restore the data of hash statement
-    hashMethod = ""
+    hashMethod = "keccak256"
 
     # parameter: record the depth of the scope
     depth = 0
@@ -316,7 +316,7 @@ library BLSOpen {
         self.depth -= 1
         with open(self.output_file, 'a') as f:
             f.write(self.addTabs() + "}\n")
-    
+
     def printReturnParameters(self, ctx):
         output = "returns " + self.printParameterList(ctx.parameterList())
         return output
@@ -345,7 +345,7 @@ library BLSOpen {
         elif self.cryptoSignal == 3:
             if self.commitmentMethod == "Pedersen":
                 output += ",uint256 value, uint256 randomness)"
-            elif self.commitmentMethod == "Merkel":
+            elif self.commitmentMethod == "Merkle":
                 output += ",bytes32 leaf, bytes32[] memory proof)"
         else:
             output += ")"
@@ -419,16 +419,6 @@ library BLSOpen {
                     if isinstance(ctx.getChild(0).getChild(i), CryptlangParser.IdentifierContext):
                         self.commitmentParams.append(ctx.getChild(0).getChild(i).getText())
                 self.cryptoSignal = 3
-            # if there is hash method, store it
-            if ctx.getChildCount() == 4:
-                if ctx.getChild(2).getText() == "SHA3-256":
-                    self.hashMethod = "keccak256"
-                elif ctx.getChild(2).getText() == "SHA2-256":
-                    self.hashMethod = "sha256"
-                elif ctx.getChild(2).getText() == "RIPEMD-160":
-                    self.hashMethod = "ripemd160"
-            else:
-                self.hashMethod = "keccak256"
     
         # if cryptoSignal == 1, print the signature statement depending on the signature method
         elif self.cryptoSignal == 1:
@@ -513,7 +503,7 @@ library BLSOpen {
                     f.write(self.addTabs() + "uint256 h = uint256(" + self.hashMethod + "(abi.encodePacked(randomness)));\n")
                     f.write(self.addTabs() + "uint256 c = (Pedersen.modExp(g, value, q) * Pedersen.modExp(h, randomness, q)) % q;\n")
                     f.write(self.addTabs() + "require(" + self.commitmentParams[0] + " == c);\n")
-                elif self.commitmentMethod == "Merkel":
+                elif self.commitmentMethod == "Merkle":
                     f.write(self.addTabs() + "bytes32 computedHash = keccak256(abi.encodePacked(leaf));\n")
                     f.write(self.addTabs() + "for(uint256 i = 0; i < proof.length; i++){\n")
                     f.write(self.addTabs() + "\tif(computedHash < proof[i]){\n")
@@ -576,7 +566,13 @@ library BLSOpen {
     def enterCommitmentMethod(self, ctx):
         self.commitmentMethod = ctx.getText()
 
-
+    def enterHashMethod(self, ctx):
+        if ctx.getText() == "SHA3-256":
+            self.hashMethod = "keccak256"
+        elif ctx.getText() == "SHA2-256":
+            self.hashMethod = "sha256"
+        elif ctx.getText() == "RIPEMD-160":
+            self.hashMethod = "ripemd160"
 
     # def enterStatementSymbol(self, ctx):
     #     print("enterStatementSymbol: " + ctx.getText())

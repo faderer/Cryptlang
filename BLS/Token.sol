@@ -47,9 +47,9 @@ contract safeToken {
 	using BLSOpen for *;
 	mapping(address => uint256) public nonce;
 	mapping (address => uint256[4]) public pubkey;
-	function transfer (address to,uint256 amount,uint256[2] memory sig) public
+	function transfer (address _to,uint256 _amount,uint256[2] memory sig) public
 	{
-		bytes memory hash = abi.encodePacked(sha256(abi.encodePacked(to, amount, nonce[0xD7ACd2a9FD159E69Bb102A1ca21C9a3e3A5F771B], address(this))));
+		bytes memory hash = abi.encodePacked(sha256(abi.encodePacked(_to, _amount, nonce[0xD7ACd2a9FD159E69Bb102A1ca21C9a3e3A5F771B], address(this))));
 		uint256[2] memory message = BLSOpen.hashToPoint(hash);
 		require(BLSOpen.verifySingle(sig, pubkey[0xD7ACd2a9FD159E69Bb102A1ca21C9a3e3A5F771B], message));
 		nonce[0xD7ACd2a9FD159E69Bb102A1ca21C9a3e3A5F771B]++;

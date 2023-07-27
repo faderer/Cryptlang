@@ -695,12 +695,12 @@ contract PlonkVerifier {
         }
         
     }
-	function factor (uint256 n,uint256[24] calldata proof) public
+	function factor (uint256 _n,uint256[24] calldata proof) public
 	{
 		for(uint i = 0; i < proofs.length; i++){
 			require(compareProof(proof,proofs[i]));
 		}
-		require(this.verifyProof(proof, [n]));
+		require(this.verifyProof(proof, [_n]));
 		proofs.push(proof);
 	}
 	function compareProof(uint256[24] memory first, uint256[24] memory second) internal pure returns (bool) {

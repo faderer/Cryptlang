@@ -1,8 +1,8 @@
 pragma Cryptlang ^0.0.1;
 contract safeToken {
-    function transfer(address to, uint256 amount) public {
+    function transfer(address _to, uint256 _amount) public {
         // explicitly indicate the owner of the signature, by default it is the sender
-        @require(ECDSA, to, amount, 0xD7ACd2a9FD159E69Bb102A1ca21C9a3e3A5F771B);
+        @ECDSA with SHA2-256(_to, _amount, 0xD7ACd2a9FD159E69Bb102A1ca21C9a3e3A5F771B);
         // transfer token
     }
 }
