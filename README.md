@@ -1,4 +1,4 @@
-# [Cryptlang]
+# Cryptlang
 
 ## 概述
 
