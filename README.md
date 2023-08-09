@@ -1,4 +1,4 @@
-# [Cryptlang](https://www.overleaf.com/3351462699qcpfszthbcsb)
+# [Cryptlang]
 
 ## 概述
 
