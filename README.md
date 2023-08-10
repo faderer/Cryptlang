@@ -39,9 +39,20 @@ pip3 install antlr4-python3-runtime
 ```bash
 git clone https://github.com/faderer/Cryptlang.git
 cd Cryptlang
-mkdir build
-cd build
-cmake ..
-make
+pip3 install -e .
 ```
-
+我们还需要安装zokrates，circom和snarkjs，这些工具可以用于生成零知识证明的证明和验证密钥。安装方法如下：
+```bash
+git clone https://github.com/ZoKrates/ZoKrates
+cd ZoKrates
+export ZOKRATES_STDLIB=$PWD/zokrates_stdlib/stdlib
+cargo build -p zokrates_cli --release
+cd target/release
+sudo cp zokrates /usr/local/bin
+```
+```bash
+git clone https://github.com/iden3/circom.git
+cargo build --release
+cargo install --path circom
+npm install -g snarkjs
+```
