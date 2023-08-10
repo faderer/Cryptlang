@@ -22,3 +22,26 @@ Cryptlang是针对以太坊使用的Solidity语言所设计的密码学领域特
 ### 零知识证明
 零知识证明是密码学中的一个重要概念，它可以用于证明某个语句的真实性，同时不泄露任何关于该语句的信息。零知识证明可以用于实现隐私保护，可验证计算，可验证随机函数等等。区块链上的常用零知识证明协议有Groth16和Plonk。Groth16是一个基于pairing的零知识证明方案，可以通过调用以太坊的pairing相关预编译合约实现。Plonk是一个基于多项式的零知识证明方案，同样可以通过调用以太坊的预编译合约实现。
 
+## 安装
+
+### 依赖
+如果是Ubuntu系统，可以通过以下命令安装依赖：
+```bash
+sudo apt-get install default-jdk-headless git build-essential cmake libgmp-dev pkg-config libssl-dev libboost-dev libboost-program-options-dev
+```
+因为本项目需要安装python3.8及以上版本。另外，本项目使用了antlr4作为语法解析器，因此需要安装antlr4的python3运行时库。安装方法如下：
+```bash
+pip3 install antlr4-python3-runtime
+```
+
+### 安装
+可以通过以下命令安装Cryptlang：
+```bash
+git clone https://github.com/faderer/Cryptlang.git
+cd Cryptlang
+mkdir build
+cd build
+cmake ..
+make
+```
+
