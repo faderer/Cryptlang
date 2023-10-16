@@ -1,12 +1,16 @@
 # Cryptlang
 
-## 概述
+## Introduction
 
-Cryptlang是针对以太坊使用的Solidity语言所设计的密码学领域特定语言。密码学经验不足以太坊开发者在编写智能合约时可能会遇到各种密码学相关的问题，比如不知道或不理解密码学template/api，不会或错误使用密码学template/api等。Cryptlang可以帮助密码学经验不足的开发者轻松地实现智能合约中的密码学任务。开发者只需要通过Cryptlang的语法描述密码学任务，编译器就能自动生成对应的Solidity合约。
+Ethereum is a leading platform for emerging cryptography-related applications, \eg, digital signatures, commitment, and zero-knowledge proofs (ZKP).
+As of the Shanghai upgrade, Ethereum offers eight precompiled contracts that act as built-in crypto APIs for developers to manage cryptographic tasks.
 
-## 背景
+## Motivation
 
-经相关研究调查，目前智能合约上常用的密码学任务有哈希，签名，承诺和零知识证明。然而以太坊只提供了十分有限的底层密码学接口，不熟悉的开发者难以利用这些接口去构建对应的密码学任务。Cryptlang提供了从底层密码学接口到抽象密码学任务的实现方案，下面我们将介绍上述密码学任务的背景知识以及应该由何种密码学接口进行构建。
+Developers still struggle with the complex cryptographic task with the aforementioned APIs for the following reasons:
+- Developers may not possess the requisite cryptographic expertise, the native crypto APIs are deemed excessively low-level for their practical utilization. 
+- The Low-level cryptographic APIs often prove insufficient in capability, thereby posing a challenge for developers when integrating them into more complex high-level tasks.
+- Developers are prone to errors when employing low-level cryptographic APIs, potentially leading to exploitable vulnerabilities.
 
 ### 哈希
 
