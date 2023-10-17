@@ -1,8 +1,0 @@
-pragma Cryptlang ^0.0.1;
-contract verifyTransaction {
-    function verifyPedersenCommitment(uint256 _commitment) public view {
-        // explicitly indicate the owner of the signature, by default it is the sender
-        @Pedersen with SHA2-256(_commitment);
-        // transfer token
-    }
-}

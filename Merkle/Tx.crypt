@@ -1,8 +1,0 @@
-pragma Cryptlang ^0.0.1;
-contract verifyTransaction {
-    function verifyMerkleProof(bytes32 _root) public pure {
-        // explicitly indicate the owner of the signature, by default it is the sender
-        @Merkle with SHA2-256(_root);
-        // transfer token
-    }
-}
