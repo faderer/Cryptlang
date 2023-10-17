@@ -1,4 +1,5 @@
 pragma solidity ^0.8.18;
+import { ERC20 } from "./ERC20.sol" ;
 library ECDSA {
     enum RecoverError {
         NoError,
@@ -83,13 +84,14 @@ library ECDSA {
         }
     }
 }
-contract safeToken {
+contract ERC20Permit is ERC20 {
 	using ECDSA for bytes32;
 	mapping(address => uint256) public nonce;
-	function transfer (address to,uint256 amount,bytes memory sig) public
+	function permit (address _owner,address _spender,uint256 _value,bytes memory sig) public
 	{
-		bytes32 hash = keccak256(abi.encodePacked(to, amount, nonce[0xD7ACd2a9FD159E69Bb102A1ca21C9a3e3A5F771B], address(this)));
-		require(ECDSA.recover(hash, sig) == 0xD7ACd2a9FD159E69Bb102A1ca21C9a3e3A5F771B);
+		bytes32 hash = sha256(abi.encodePacked(_owner, _spender, _value, 0xD7ACd2a9FD159E69Bb102A1ca21C9a3e3A5F771B, block.chainid, address(this), nonce[0xD7ACd2a9FD159E69Bb102A1ca21C9a3e3A5F771B]));
+		require(ECDSA.recover(hash, sig) == 0xD7ACd2a9FD159E69Bb102A1ca21C9a3e3A5F771B, "Invalid Signature!");
 		nonce[0xD7ACd2a9FD159E69Bb102A1ca21C9a3e3A5F771B]++;
+		_approve(_owner,_spender,_value);
 	}
 }

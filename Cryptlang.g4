@@ -151,7 +151,9 @@ block
   : '{' statement* '}' ;
 
 statement
-  : ifStatement
+  : taskStatement
+  | otherStatement
+  | ifStatement
   | whileStatement
   | forStatement
   | block
@@ -183,7 +185,7 @@ privateIdentifierList
   : ( privateIdentifier? ',' )* privateIdentifier? ;
 
 hashMethod
-  : 'SHA3-256' | 'SHA2-256' | 'RIPEMD160' ;
+  : 'SHA3' | 'SHA2' | 'RIPEMD' ;
 
 signatureMethod
   : 'ECDSA' | 'BLS' ;
@@ -202,10 +204,14 @@ commitmentStatement
 
 // momentarily, we only support one zok file address as primaryExpression.
 proofStatement
-  : statementSymbol proofMethod 'with' primaryExpression '(' privateIdentifierList ')';
+  // : statementSymbol proofMethod 'with' primaryExpression '(' privateIdentifierList ')';
+  : statementSymbol proofMethod ('with' hashMethod)? '(' (identifier? ',')* identifier? ',' primaryExpression? ')';
 
 taskStatement
   : (signatureStatement | commitmentStatement | proofStatement) ';' ;
+
+otherStatement
+  : .+? ';' ;
 
 ifStatement
   : 'if' '(' expression ')' statement ( 'else' statement )? ;

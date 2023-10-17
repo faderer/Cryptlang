@@ -1,4 +1,4 @@
-# Generated from Cryptlang.g4 by ANTLR 4.13.0
+# Generated from Cryptlang.g4 by ANTLR 4.13.1
 from antlr4 import *
 if "." in __name__:
     from .CryptlangParser import CryptlangParser
@@ -482,6 +482,15 @@ class CryptlangListener(ParseTreeListener):
 
     # Exit a parse tree produced by CryptlangParser#taskStatement.
     def exitTaskStatement(self, ctx:CryptlangParser.TaskStatementContext):
+        pass
+
+
+    # Enter a parse tree produced by CryptlangParser#otherStatement.
+    def enterOtherStatement(self, ctx:CryptlangParser.OtherStatementContext):
+        pass
+
+    # Exit a parse tree produced by CryptlangParser#otherStatement.
+    def exitOtherStatement(self, ctx:CryptlangParser.OtherStatementContext):
         pass
 
 

@@ -1,43 +1,26 @@
 # Cryptlang
 
-## Introduction
+## 概述
 
-Ethereum is a leading platform for emerging cryptography-related applications, e.g., digital signatures, commitment, and zero-knowledge proofs (ZKP).
-As of the Shanghai upgrade, Ethereum offers eight precompiled contracts that act as built-in crypto APIs for developers to manage cryptographic tasks.
+Cryptlang是针对以太坊使用的Solidity语言所设计的密码学领域特定语言。密码学经验不足以太坊开发者在编写智能合约时可能会遇到各种密码学相关的问题，比如不知道或不理解密码学template/api，不会或错误使用密码学template/api等。Cryptlang可以帮助密码学经验不足的开发者轻松地实现智能合约中的密码学任务。开发者只需要通过Cryptlang的语法描述密码学任务，编译器就能自动生成对应的Solidity合约。
 
-## Motivation
+## 背景
 
-Developers still struggle with the complex cryptographic task with the aforementioned APIs for the following reasons:
-- Developers may not possess the requisite cryptographic expertise, the native crypto APIs are deemed excessively low-level for their practical utilization. 
-- The Low-level cryptographic APIs often prove insufficient in capability, thereby posing a challenge for developers when integrating them into more complex high-level tasks.
-- Developers are prone to errors when employing low-level cryptographic APIs, potentially leading to exploitable vulnerabilities.
-
-## Related Work
-
-- The previous studies primarily focus on templates or code generators geared for single-task purposes.
-- Developers face challenges in modifying the code when they lack a comprehensive understanding of the template.
-- The functionality of the existing tools falls short of meeting the specific demands posed by the aforementioned cryptographic tasks.
-
-## This Work
-
-- We introduce Cryptlang, a domain-specific language designed for handling high-level cryptographic tasks with unified structures.
-- We present a Cryptlang compiler that translates Cryptlang code into Solidity automatically.
-- We ensure the inherent security of the generated code by leveraging standard cryptographic templates.
-- We evaluate Cryptlang through six case studies focusing on the cryptographic tasks that commonly occur in Ethereum.
+经相关研究调查，目前智能合约上常用的密码学任务有哈希，签名，承诺和零知识证明。然而以太坊只提供了十分有限的底层密码学接口，不熟悉的开发者难以利用这些接口去构建对应的密码学任务。Cryptlang提供了从底层密码学接口到抽象密码学任务的实现方案，下面我们将介绍上述密码学任务的背景知识以及应该由何种密码学接口进行构建。
 
 ### 哈希
 
-In Ethereum, hash functions are widely employed in various scenarios, including data integrity verification, smart contract address generation, encryption, and security. Commonly used hash functions in Ethereum include SHA3 (keccak256), SHA2(sha256), and RIPEMD (ripemd160). They can all be implemented directly through Ethereum's native cryptographic interfaces. Keccak256 can be achieved by invoking Ethereum opcodes, while sha256 and ripemd160 can be implemented by calling Ethereum's built-in precompiled contracts.
+在以太坊上，哈希函数被广泛应用于各种场景，包括数据完整性验证、智能合约地址生成、加密和安全性等方面。在以太坊中常用的哈希函数有SHA3-256(keccak256)，SHA2-256(sha256)和RIPEMD-160(ripemd160)。它们都可以由以太坊原生的密码学接口直接实现，keccak256可以通过调用以太坊的opcode，sha256和ripemd160可以通过调用以太坊内置的预编译合约来实现。
 
 ### 签名验证
 
-Signature verification is a common application in Ethereum for identity authentication, security, and trust. Ethereum primarily uses the ECDSA signature scheme. Ethereum's first precompiled contract was the ECDSA signature verification precompiled contract on the secp256k1 curve. By calling this contract, one can recover the address associated with the signer's public key, thereby verifying the validity of the signature. However, ECDSA cannot aggregate signatures, while BLS signatures can. BLS signature aggregation reduces transaction size and cost. Ethereum is working on adding pairing precompiled contracts for the BLS-12-381 curve in future upgrades.
+签名验证是另一个在以太坊上的常见应用，可用于身份认证，授权和访问控制，安全性验证等等。签名验证是以太坊上保障安全性和可信性的重要机制之一，通过在交易和消息中使用数字签名，可以确保只有拥有相应私钥的用户能够执行特定操作，并防止网络中的欺诈行为。以太坊中最常用的签名方案为ECDSA，因此以太坊的第一个智能合约就是secp256k1曲线上的ECDSA签名验证预编译合约。通过调用合约，可以恢复出签名者的公钥相关联的地址，从而验证签名的有效性。然而ECDSA不能进行签名聚合，BLS签名可以进行聚合。BLS签名聚合是一种基于pairing的签名聚合方案，它可以将多个签名聚合成一个签名，从而减少交易的大小和成本。然而使用BLS签名聚合时，需要运算G_T上的乘法，目前以太坊并没有提供相应的预编译合约，但是有望在下一次升级中加入BLS-12-381曲线上的pairing预编译合约。
 
 ### 承诺
-Commitment is an essential concept in cryptography that allows a value to be hidden while ensuring it cannot be tampered with. Commitments find applications in zero-knowledge proofs, verifiable computations, verifiable random functions, and more. Common commitment protocols on the blockchain include Pedersen commitments and Merkle commitments. Pedersen commitments are based on discrete logarithms and can be implemented by invoking Ethereum's modExp precompiled contract. Merkle commitments, on the other hand, are based on hash functions and can also be implemented through Ethereum's precompiled contracts.
+承诺是密码学中的一个重要概念，通过承诺可以将某个值隐藏起来，同时保证该值不会被篡改。承诺可以用于实现零知识证明，可验证计算，可验证随机函数等等。区块链上的常用承诺协议有Pederson承诺和Merkle承诺。Pederson承诺是一个基于离散对数的承诺方案，可以通过调用以太坊的modExp预编译合约实现。Merkle承诺是一个基于哈希函数的承诺方案，同样可以通过调用以太坊的预编译合约实现。
 
 ### 零知识证明
-Zero-knowledge proofs are a fundamental concept in cryptography, allowing one to prove the truth of a statement without revealing any information about the statement itself. Zero-knowledge proofs find applications in privacy protection, verifiable computations, verifiable random functions, and more. Common zero-knowledge proof protocols on the blockchain include Groth16 and Plonk. Groth16 is a pairing-based zero-knowledge proof scheme and can be implemented by invoking Ethereum's related pairing precompiled contracts. Plonk, on the other hand, is a polynomial-based zero-knowledge proof scheme and can also be implemented through Ethereum's precompiled contracts.
+零知识证明是密码学中的一个重要概念，它可以用于证明某个语句的真实性，同时不泄露任何关于该语句的信息。零知识证明可以用于实现隐私保护，可验证计算，可验证随机函数等等。区块链上的常用零知识证明协议有Groth16和Plonk。Groth16是一个基于pairing的零知识证明方案，可以通过调用以太坊的pairing相关预编译合约实现。Plonk是一个基于多项式的零知识证明方案，同样可以通过调用以太坊的预编译合约实现。
 
 ## 安装
 
@@ -82,8 +65,17 @@ npm install -g snarkjs
 statementSymbol
   : '@' ;
 
+privateSymbol
+  : '#' ;
+
+privateIdentifier
+  : privateSymbol? identifier ;
+
+privateIdentifierList
+  : ( privateIdentifier? ',' )* privateIdentifier? ;
+
 hashMethod
-  : 'SHA3' | 'SHA2' | 'RIPEMD' ;
+  : 'SHA3-256' | 'SHA2-256' | 'RIPEMD160' ;
 
 signatureMethod
   : 'ECDSA' | 'BLS' ;
@@ -102,37 +94,27 @@ commitmentStatement
 
 // momentarily, we only support one zok file address as primaryExpression.
 proofStatement
-  // : statementSymbol proofMethod 'with' primaryExpression '(' privateIdentifierList ')';
-  : statementSymbol proofMethod ('with' hashMethod)? '(' (identifier? ',')* identifier? ',' primaryExpression? ')';
+  : statementSymbol proofMethod 'with' primaryExpression '(' privateIdentifierList ')';
 
 taskStatement
   : (signatureStatement | commitmentStatement | proofStatement) ';' ;
-
-otherStatement
-  : .+? ';' ;
 ```
 
-The provided code is Cryptlang's g4 code, which extends Solidity to support cryptographic functionalities. Here's a description of the code:
+上述代码为Cryptlang的g4代码，基于solidity进行扩充设计。
 
-Firstly, it introduces two special symbols:
+首先是两个特殊符号，“@”是Cryptlang语法的启始标识符，当用户使用此符号时，表示其准备启用Cryptlang的密码学功能。“#”符号是专门为Cryptlang中的零知识证明方法定制的符号，用户需要在零知识证明的隐私输入变量符号前加上“#”以便与公开输入进行区分。
 
-1. "@": The starting identifier for Cryptlang's syntax, indicating that the user is preparing to enable Cryptlang's cryptographic capabilities.
-2. "#": A symbol specifically designed for Cryptlang's zero-knowledge proof methods. Users need to prefix the symbol "#" to distinguish privacy inputs from public inputs in zero-knowledge proofs.
+接下来我们分别定义四个密码学方法：
+1. 哈希：SHA3-256即solidity中的keccak256，SHA2-256即solidity中的sha256，RIPEMD160即solidity中的ripemd160
+2. 签名：分别为ECDSA的签名验证和BLS的签名验证
+3. 承诺：分别为Pedersen承诺和Merkle承诺
+4. 零知识证明：分别为Groth16证明和PLONK证明，均为zk-snark
 
-Next, it defines four cryptographic methods:
-
-1. Hash: This includes SHA3-256 (corresponding to Solidity's keccak256), SHA2-256 (corresponding to Solidity's sha256), and RIPEMD160 (corresponding to Solidity's ripemd160).
-2. Signature: This includes signature verification for both ECDSA and BLS.
-3. Commitment: This includes Pedersen commitments and Merkle commitments.
-4. Zero-Knowledge Proof: This includes Groth16 proofs and PLONK proofs, both of which are based on zk-SNARK protocols.
-
-Finally, it provides the representation of cryptographic tasks in Cryptlang, which includes three types of tasks:
-
-1. Signature Verification: It requires specifying the signature method (ECDSA or BLS), optionally selecting a hash method (SHA3-256, SHA2-256, or RIPEMD160), and then providing the signer's address and all the parameters that were signed, in order.
-2. Commitment Verification: This task involves specifying the commitment method (Pedersen or Merkle), optionally selecting a hash method (SHA3-256, SHA2-256, or RIPEMD160), and providing the commitment values using an input function.
-3. Zero-Knowledge Proof Verification: It necessitates specifying the proof method (Groth16 or PLONK), optionally selecting a hash method (SHA3-256, SHA2-256, or RIPEMD160), and then sequentially entering the public inputs and private inputs.
-
-This DSL (Domain-Specific Language) extends Solidity, making it easier to work with cryptographic tasks.
+最后是Cryptlang具体的密码学任务表示方式，本DSL提供三个密码学任务，分别为签名验证，承诺验证和零知识证明验证，下面我们将分别介绍：
+在所有任务开始前都需要输入“@”符号。
+1. 签名验证：首先输入具体的签名方法名（ECDSA或BLS），接着输入可选的哈希方法（SHA3-256，SHA2-256或RIPEMD160），最后以输入函数参数的方式，按顺序输入签名者的地址以及所有被签名的参数。
+2. 承诺验证：首先输入具体的承诺方法名（Pedersen或Merkle），接着输入可选的哈希方法（SHA3-256，SHA2-256或RIPEMD160），最后以输入函数参数的方式输入承诺值。
+3. 零知识证明验证：首先输入具体的证明方法名（Groth16或PLONK），接着输入可选的哈希方法（SHA3-256，SHA2-256或RIPEMD160），最后以输入函数参数的方式，按顺序输入公开输入和隐私输入。
 
 ## 区块链与民生
 区块链、密码学和民生之间存在密切的关系。密码学是区块链技术的核心组成部分，它为区块链提供了安全性、隐私保护和访问控制等关键特征，从而影响到民生的多个方面：

@@ -253,6 +253,15 @@ library BLSOpen {
         else:
             with open(self.output_file, 'w') as f:
                 pass
+
+    def enterImportDirective(self, ctx):
+        with open(self.output_file, 'a') as f:
+            f.write(self.addTabs())
+            for i in range(ctx.getChildCount()):
+                if i == ctx.getChildCount() - 1:
+                    f.write(ctx.getChild(i).getText() + "\n")
+                else:
+                    f.write(ctx.getChild(i).getText() + " ")
     
     def enterContractDefinition(self, ctx):
         with open(self.output_file, 'a') as f:
@@ -283,9 +292,16 @@ library BLSOpen {
             # print the contract definition
             if self.cryptoSignal != 2:
                 f.write(self.addTabs() + "contract " + ctx.identifier().getText())
-                if isinstance(ctx.getChild(2), CryptlangParser.InheritanceSpecifierContext):
-                    f.write(" is " + ctx.getChild(2).getText())
+                j = 0
+                for i in range(ctx.getChildCount()):
+                    if isinstance(ctx.getChild(i), CryptlangParser.InheritanceSpecifierContext):
+                        if j == 0:
+                            f.write(" is " + ctx.getChild(i).getText())
+                            j += 1
+                        else:
+                            f.write(", " + ctx.getChild(i).getText())
                 f.write(" {\n")
+                j = 0
             elif self.cryptoSignal == 2:
                 # Navigate to the second-to-last row of the file
                 f.seek(0, 2)
@@ -311,6 +327,10 @@ library BLSOpen {
             elif self.cryptoSignal == 3:
                 if self.commitmentMethod == "Pedersen":
                     f.write(self.addTabs() + "using Pedersen for uint256;\n")
+                    f.write(self.addTabs() + "mapping(address => uint256) public commit;\n")
+                    f.write(self.addTabs() + "function commitTo(uint256 _commitment) public {\n")
+                    f.write(self.addTabs() + "\tcommit[msg.sender] = _commitment;\n")
+                    f.write(self.addTabs() + "}\n")
 
     def exitContractDefinition(self, ctx):
         self.depth -= 1
@@ -344,7 +364,7 @@ library BLSOpen {
                 output += ",uint256[24] calldata proof)"
         elif self.cryptoSignal == 3:
             if self.commitmentMethod == "Pedersen":
-                output += ",uint256 value, uint256 randomness)"
+                output += ",uint256 randomness)"
             elif self.commitmentMethod == "Merkle":
                 output += ",bytes32 leaf, bytes32[] memory proof)"
         else:
@@ -407,12 +427,17 @@ library BLSOpen {
                         self.signatureOwner = ctx.getChild(0).getChild(i).getText()
                 self.cryptoSignal = 1
             elif isinstance(ctx.getChild(0), CryptlangParser.ProofStatementContext):
-                for i in range(ctx.getChild(0).privateIdentifierList().getChildCount()):
-                    if isinstance(ctx.getChild(0).privateIdentifierList().getChild(i).getChild(0), CryptlangParser.IdentifierContext):
-                        self.proofParams.append(ctx.getChild(0).privateIdentifierList().getChild(i).getChild(0).getText())
                 for i in range(ctx.getChild(0).getChildCount()):
-                    if isinstance(ctx.getChild(0).getChild(i), CryptlangParser.PrimaryExpressionContext):
-                        self.proofLocation = ctx.getChild(0).getChild(i).getText()
+                    if isinstance(ctx.getChild(0).getChild(i), CryptlangParser.IdentifierContext):
+                        self.proofParams.append(ctx.getChild(0).getChild(i).getText())
+                    elif isinstance(ctx.getChild(0).getChild(i), CryptlangParser.PrimaryExpressionContext):
+                        self.proofLocation = ctx.getChild(0).getChild(i).getText()                
+                # for i in range(ctx.getChild(0).privateIdentifierList().getChildCount()):
+                #     if isinstance(ctx.getChild(0).privateIdentifierList().getChild(i).getChild(0), CryptlangParser.IdentifierContext):
+                #         self.proofParams.append(ctx.getChild(0).privateIdentifierList().getChild(i).getChild(0).getText())
+                # for i in range(ctx.getChild(0).getChildCount()):
+                #     if isinstance(ctx.getChild(0).getChild(i), CryptlangParser.PrimaryExpressionContext):
+                #         self.proofLocation = ctx.getChild(0).getChild(i).getText()
                 self.cryptoSignal = 2
             elif isinstance(ctx.getChild(0), CryptlangParser.CommitmentStatementContext):
                 for i in range(ctx.getChild(0).getChildCount()):
@@ -429,36 +454,41 @@ library BLSOpen {
                     for i in range(len(self.signatureParams)):
                         f.write(self.signatureParams[i] + ", ")
                     if self.signatureOwner != "":
-                        f.write("nonce[" + self.signatureOwner + "], address(this)));\n")
+                        # f.write("nonce[" + self.signatureOwner + "], address(this)));\n")
+                        f.write(self.signatureOwner + ", block.chainid, address(this), nonce[" + self.signatureOwner + "]));\n")
                     else:
-                        f.write("nonce[msg.sender] + address(this)))\n")
+                        # f.write("nonce[msg.sender] + address(this)))\n")
+                        f.write("msg.sender, block.chainid, address(this), nonce[msg.sender]));\n")
                 elif self.signatureMethod == "BLS":
                     f.write(self.addTabs() + "bytes memory hash = abi.encodePacked(" + self.hashMethod + "(abi.encodePacked(")
                     for i in range(len(self.signatureParams)):
                         f.write(self.signatureParams[i] + ", ")
                     if self.signatureOwner != "":
-                        f.write("nonce[" + self.signatureOwner + "], address(this))));\n")
+                        # f.write("nonce[" + self.signatureOwner + "], address(this))));\n")
+                        f.write(self.signatureOwner + ", block.chainid, address(this), nonce[" + self.signatureOwner + "])));\n")
                     else:
-                        f.write("nonce[msg.sender] + address(this))));\n")
+                        # f.write("nonce[msg.sender] + address(this))));\n")
+                        f.write("msg.sender, block.chainid, address(this), nonce[msg.sender])));\n")
                     f.write(self.addTabs() + "uint256[2] memory message = BLSOpen.hashToPoint(hash);\n")
                 
                 # print the require statement depending on the signature method
                 if self.signatureMethod == "ECDSA":
                     if self.signatureOwner != "":
-                        f.write(self.addTabs() + "require(ECDSA.recover(hash, sig) == " + self.signatureOwner + ");\n")
+                        f.write(self.addTabs() + "require(ECDSA.recover(hash, sig) == " + self.signatureOwner + ", \"Invalid Signature!\");\n")
                     else:
-                        f.write(self.addTabs() + "require(ECDSA.recover(hash, sig) == msg.sender);\n")
+                        f.write(self.addTabs() + "require(ECDSA.recover(hash, sig) == msg.sender, \"Invalid Signature!\");\n")
                 elif self.signatureMethod == "BLS":
                     if self.signatureOwner != "":
-                        f.write(self.addTabs() + "require(BLSOpen.verifySingle(sig, pubkey[" + self.signatureOwner + "], message));\n")
+                        f.write(self.addTabs() + "require(BLSOpen.verifySingle(sig, pubkey[" + self.signatureOwner + "], message), \"Invalid Signature!\");\n")
                     else:
-                        f.write(self.addTabs() + "require(BLSOpen.verifySingle(sig, pubkey[msg.sender], message));\n")
+                        f.write(self.addTabs() + "require(BLSOpen.verifySingle(sig, pubkey[msg.sender], message), \"Invalid Signature!\");\n")
                 
                 # update the nonce
                 if self.signatureOwner != "":
                     f.write(self.addTabs() + "nonce[" + self.signatureOwner + "]++;\n")
                 else:
                     f.write(self.addTabs() + "nonce[msg.sender]++;\n")
+                self.cryptoSignal = 0
 
         # if cryptoSignal == 2, print the proof statement
         elif self.cryptoSignal == 2:
@@ -483,15 +513,15 @@ library BLSOpen {
             with open(self.output_file, 'a') as f:
                 if self.proofMethod == "Groth16":
                     f.write(self.addTabs() + "for(uint i = 0; i < proofs.length; i++){\n")
-                    f.write(self.addTabs() + "\trequire(compareProof(proof,proofs[i]));\n")
+                    f.write(self.addTabs() + "\trequire(compareProof(proof,proofs[i]), \"Proof already submitted!\");\n")
                     f.write(self.addTabs() + "}\n")
-                    f.write(self.addTabs() + "require(verifyTx(proof, [" + ",".join(self.proofParams) + "]));\n")
+                    f.write(self.addTabs() + "require(verifyTx(proof, [" + ",".join(self.proofParams) + "]), \"Invalid Proof!\");\n")
                     f.write(self.addTabs() + "proofs.push(proof);\n")
                 elif self.proofMethod == "PLONK":
                     f.write(self.addTabs() + "for(uint i = 0; i < proofs.length; i++){\n")
-                    f.write(self.addTabs() + "\trequire(compareProof(proof,proofs[i]));\n")
+                    f.write(self.addTabs() + "\trequire(compareProof(proof,proofs[i]), \"Proof already submitted!\");\n")
                     f.write(self.addTabs() + "}\n")
-                    f.write(self.addTabs() + "require(this.verifyProof(proof, [" + ",".join(self.proofParams) + "]));\n")
+                    f.write(self.addTabs() + "require(this.verifyProof(proof, [" + ",".join(self.proofParams) + "]), \"Invalid Proof!\");\n")
                     f.write(self.addTabs() + "proofs.push(proof);\n")
         
         # if cryptoSignal == 3, print the commitment statement
@@ -501,8 +531,8 @@ library BLSOpen {
                     f.write(self.addTabs() + "uint256 q = 21888242871839275222246405745257275088548364400416034343698204186575808495617;\n")
                     f.write(self.addTabs() + "uint256 g = 7;\n")
                     f.write(self.addTabs() + "uint256 h = uint256(" + self.hashMethod + "(abi.encodePacked(randomness)));\n")
-                    f.write(self.addTabs() + "uint256 c = (Pedersen.modExp(g, value, q) * Pedersen.modExp(h, randomness, q)) % q;\n")
-                    f.write(self.addTabs() + "require(" + self.commitmentParams[0] + " == c);\n")
+                    f.write(self.addTabs() + "uint256 c = mulmod(Pedersen.modExp(g," + self.commitmentParams[0] + ", q),Pedersen.modExp(h, randomness, q),q);\n")
+                    f.write(self.addTabs() + "require(commit[msg.sender] == c, \"Invalid Commit!\");\n")
                 elif self.commitmentMethod == "Merkle":
                     f.write(self.addTabs() + "bytes32 computedHash = keccak256(abi.encodePacked(leaf));\n")
                     f.write(self.addTabs() + "for(uint256 i = 0; i < proof.length; i++){\n")
@@ -513,8 +543,20 @@ library BLSOpen {
                     f.write(self.addTabs() + "\t\tcomputedHash = " + self.hashMethod + "(abi.encodePacked(proof[i], computedHash));\n")
                     f.write(self.addTabs() + "\t}\n")
                     f.write(self.addTabs() + "}\n")
-                    f.write(self.addTabs() + "require(" + self.commitmentParams[0] + " == computedHash);\n")
+                    f.write(self.addTabs() + "require(" + self.commitmentParams[0] + " == computedHash, \"Invalid Commit!\");\n")
         
+    def enterOtherStatement(self, ctx):
+        with open(self.output_file, 'a') as f:
+            f.write(self.addTabs())
+            for i in range(ctx.getChildCount()):
+                str = ctx.getChild(i).getText()
+                if i == ctx.getChildCount() - 1:
+                    f.write(ctx.getChild(i).getText() + "\n")
+                elif str == "if" or str == "else" or str == "for" or str == "while" or str == "do" or str == "return" or str == "break" or str == "continue" or str == "throw" or str == "emit" or str == "uint" or str == "bytes" or str == "uint256" or str == "bytes32" or str == "uint8" or str == "uint32":
+                    f.write(ctx.getChild(i).getText() + " ")
+                else:
+                    f.write(ctx.getChild(i).getText())
+
     def invokeZokrates(self):
         # Invoke zokrates to generate the verification contract
         proof_location = self.proofLocation
@@ -567,11 +609,11 @@ library BLSOpen {
         self.commitmentMethod = ctx.getText()
 
     def enterHashMethod(self, ctx):
-        if ctx.getText() == "SHA3-256":
+        if ctx.getText() == "SHA3":
             self.hashMethod = "keccak256"
-        elif ctx.getText() == "SHA2-256":
+        elif ctx.getText() == "SHA2":
             self.hashMethod = "sha256"
-        elif ctx.getText() == "RIPEMD-160":
+        elif ctx.getText() == "RIPEMD":
             self.hashMethod = "ripemd160"
 
     # def enterStatementSymbol(self, ctx):
