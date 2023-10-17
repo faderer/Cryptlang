@@ -421,10 +421,10 @@ library BLSOpen {
         if self.cryptoSignal == 0:
             if isinstance(ctx.getChild(0), CryptlangParser.SignatureStatementContext):
                 for i in range(ctx.getChild(0).getChildCount()):
+                    if ctx.getChild(0).getChild(i).getText() == "#":
+                        self.signatureOwner = ctx.getChild(0).getChild(i + 1).getText()
                     if isinstance(ctx.getChild(0).getChild(i), CryptlangParser.IdentifierContext):
                         self.signatureParams.append(ctx.getChild(0).getChild(i).getText())
-                    elif isinstance(ctx.getChild(0).getChild(i), CryptlangParser.PrimaryExpressionContext):
-                        self.signatureOwner = ctx.getChild(0).getChild(i).getText()
                 self.cryptoSignal = 1
             elif isinstance(ctx.getChild(0), CryptlangParser.ProofStatementContext):
                 for i in range(ctx.getChild(0).getChildCount()):
@@ -455,7 +455,7 @@ library BLSOpen {
                         f.write(self.signatureParams[i] + ", ")
                     if self.signatureOwner != "":
                         # f.write("nonce[" + self.signatureOwner + "], address(this)));\n")
-                        f.write(self.signatureOwner + ", block.chainid, address(this), nonce[" + self.signatureOwner + "]));\n")
+                        f.write("block.chainid, address(this), nonce[" + self.signatureOwner + "]));\n")
                     else:
                         # f.write("nonce[msg.sender] + address(this)))\n")
                         f.write("msg.sender, block.chainid, address(this), nonce[msg.sender]));\n")
@@ -465,7 +465,7 @@ library BLSOpen {
                         f.write(self.signatureParams[i] + ", ")
                     if self.signatureOwner != "":
                         # f.write("nonce[" + self.signatureOwner + "], address(this))));\n")
-                        f.write(self.signatureOwner + ", block.chainid, address(this), nonce[" + self.signatureOwner + "])));\n")
+                        f.write("block.chainid, address(this), nonce[" + self.signatureOwner + "])));\n")
                     else:
                         # f.write("nonce[msg.sender] + address(this))));\n")
                         f.write("msg.sender, block.chainid, address(this), nonce[msg.sender])));\n")
@@ -474,7 +474,7 @@ library BLSOpen {
                 # print the require statement depending on the signature method
                 if self.signatureMethod == "ECDSA":
                     if self.signatureOwner != "":
-                        f.write(self.addTabs() + "require(ECDSA.recover(hash, sig) == " + self.signatureOwner + ", \"Invalid Signature!\");\n")
+                        f.write(self.addTabs() + "require(ECDSA.recover(hash, sig) != address(0) && ECDSA.recover(hash, sig) == " + self.signatureOwner + ", \"Invalid Signature!\");\n")
                     else:
                         f.write(self.addTabs() + "require(ECDSA.recover(hash, sig) == msg.sender, \"Invalid Signature!\");\n")
                 elif self.signatureMethod == "BLS":

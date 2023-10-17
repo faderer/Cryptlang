@@ -197,18 +197,13 @@ proofMethod
   : 'Groth16' | 'PLONK' ;
 
 signatureStatement
-  : statementSymbol signatureMethod ('with' hashMethod)? '(' (identifier? ',')* identifier? ',' primaryExpression? ')';
+  : statementSymbol signatureMethod ('with' hashMethod)? '(' ('#' identifier)? ( ',' identifier)* ')';
 
 commitmentStatement
   : statementSymbol commitmentMethod ('with' hashMethod)? '(' (identifier? ',')* identifier? ')';
 
-// momentarily, we only support one zok file address as primaryExpression.
-proofStatement
-  // : statementSymbol proofMethod 'with' primaryExpression '(' privateIdentifierList ')';
-  : statementSymbol proofMethod ('with' hashMethod)? '(' (identifier? ',')* identifier? ',' primaryExpression? ')';
-
 taskStatement
-  : (signatureStatement | commitmentStatement | proofStatement) ';' ;
+  : (signatureStatement | commitmentStatement) ';' ;
 
 otherStatement
   : .+? ';' ;

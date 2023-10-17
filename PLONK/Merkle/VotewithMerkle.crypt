@@ -1,0 +1,8 @@
+pragma Cryptlang ^0.0.1;
+import {Vote} from "./Vote.sol";
+contract VotewithMerkle is Vote {
+    function count(bytes32 _leaf) public {
+        @Merkle with SHA2(_leaf);
+        _count(_leaf);
+    }
+}

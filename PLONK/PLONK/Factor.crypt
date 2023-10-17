@@ -1,0 +1,8 @@
+pragma Cryptlang ^0.0.1;
+contract safeFactor {
+    function factor(uint256 _n) public {
+        // the first parameter is the proof scheme, the middle parameters are the input variables(including private and public input), the last parameter is the path of the zok proof file
+        @PLONK with "factor.circom"(#a, #b, _n);
+        // factor n
+    }
+}

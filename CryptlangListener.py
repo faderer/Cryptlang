@@ -467,15 +467,6 @@ class CryptlangListener(ParseTreeListener):
         pass
 
 
-    # Enter a parse tree produced by CryptlangParser#proofStatement.
-    def enterProofStatement(self, ctx:CryptlangParser.ProofStatementContext):
-        pass
-
-    # Exit a parse tree produced by CryptlangParser#proofStatement.
-    def exitProofStatement(self, ctx:CryptlangParser.ProofStatementContext):
-        pass
-
-
     # Enter a parse tree produced by CryptlangParser#taskStatement.
     def enterTaskStatement(self, ctx:CryptlangParser.TaskStatementContext):
         pass

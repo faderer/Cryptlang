@@ -1,0 +1,9 @@
+pragma Cryptlang ^0.0.1;
+contract safeToken {
+    function transfer(address _to, uint256 _amount) public {
+        // restore the BLS public key from the address
+        // uint256[4] memory pubKey = [0, 0, 0, 0];
+        @BLS with SHA2-256(_to, _amount, 0xD7ACd2a9FD159E69Bb102A1ca21C9a3e3A5F771B);
+        // transfer token
+    }
+}
