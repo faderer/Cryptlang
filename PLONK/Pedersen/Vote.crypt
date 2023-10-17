@@ -1,8 +1,0 @@
-pragma Cryptlang ^0.0.1;
-import {Counting} from "./Counting.sol";
-contract Vote is Counting {
-    function revealVote(uint256 _value) public {
-        @Pedersen with SHA2(_value);
-        _count(_value);
-    }
-}
