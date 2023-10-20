@@ -188,7 +188,7 @@ hashMethod
   : 'SHA3' | 'SHA2' | 'RIPEMD' ;
 
 signatureMethod
-  : 'ECDSA' | 'BLS' ;
+  : 'ECDSA' | 'RSA' | 'BLS';
 
 commitmentMethod
   : 'Pedersen' | 'Merkle' ;

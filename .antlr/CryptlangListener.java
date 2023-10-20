@@ -517,16 +517,6 @@ public interface CryptlangListener extends ParseTreeListener {
 	 */
 	void exitCommitmentStatement(CryptlangParser.CommitmentStatementContext ctx);
 	/**
-	 * Enter a parse tree produced by {@link CryptlangParser#proofStatement}.
-	 * @param ctx the parse tree
-	 */
-	void enterProofStatement(CryptlangParser.ProofStatementContext ctx);
-	/**
-	 * Exit a parse tree produced by {@link CryptlangParser#proofStatement}.
-	 * @param ctx the parse tree
-	 */
-	void exitProofStatement(CryptlangParser.ProofStatementContext ctx);
-	/**
 	 * Enter a parse tree produced by {@link CryptlangParser#taskStatement}.
 	 * @param ctx the parse tree
 	 */

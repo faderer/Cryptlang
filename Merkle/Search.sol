@@ -1,7 +1,7 @@
 pragma solidity ^0.8.18;
-contract Vote {
+contract Search {
     mapping (bytes32 => uint) number;
-    function _count (bytes32 _leaf) public 
+    function _search (bytes32 _leaf) public 
     {
         number[_leaf] += 1;
     }

@@ -129,6 +129,133 @@ class CryptlangExtendListener(CryptlangListener):
             modified_content = content.replace("\n", "\n" + self.addTabs())
             f.write(modified_content)
 
+    # print the RSA library
+    def printRSALibrary(self):
+        with open(self.output_file, 'a') as f:
+            content = '''library RsaVerify {
+
+    /** @dev Verifies a PKCSv1.5 SHA256 signature
+      * @param _sha256 is the sha256 of the data
+      * @param _s is the signature
+      * @param _e is the exponent
+      * @param _m is the modulus
+      * @return true if success, false otherwise
+    */    
+    function pkcs1Sha256(
+        bytes32 _sha256,
+        bytes memory _s, bytes memory _e, bytes memory _m
+    ) public view returns (bool) {
+        
+        uint8[17] memory sha256ExplicitNullParam = [
+            0x30, 0x31, 0x30, 0x0d, 0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x01, 0x05, 0x00
+        ];
+
+        uint8[15] memory sha256ImplicitNullParam = [
+            0x30,0x2f,0x30,0x0b,0x06,0x09,0x60,0x86,0x48,0x01,0x65,0x03,0x04,0x02,0x01
+        ];
+        
+        // decipher
+
+        bytes memory input = bytes.concat(
+            bytes32(_s.length),
+            bytes32(_e.length),
+            bytes32(_m.length),
+            _s,_e,_m
+        );
+        uint inputlen = input.length;
+
+        uint decipherlen = _m.length;
+        bytes memory decipher = new bytes(decipherlen);
+        assembly {
+            pop(staticcall(sub(gas(), 2000), 5, add(input,0x20), inputlen, add(decipher,0x20), decipherlen))
+	    }
+
+        // Check that is well encoded:
+        //
+        // 0x00 || 0x01 || PS || 0x00 || DigestInfo
+        // PS is padding filled with 0xff
+        // DigestInfo ::= SEQUENCE {
+        //    digestAlgorithm AlgorithmIdentifier,
+        //      [optional algorithm parameters]
+        //    digest OCTET STRING
+        // }
+
+        bool hasNullParam;
+        uint digestAlgoWithParamLen;
+
+        if (uint8(decipher[decipherlen-50])==0x31) {
+            hasNullParam = true;
+             digestAlgoWithParamLen = sha256ExplicitNullParam.length;
+        } else if  (uint8(decipher[decipherlen-48])==0x2f) {
+            hasNullParam = false;
+            digestAlgoWithParamLen = sha256ImplicitNullParam.length;
+        } else {
+            return false;
+        }
+
+        uint paddingLen = decipherlen - 5 - digestAlgoWithParamLen -  32 ;
+
+        if (decipher[0] != 0 || decipher[1] != 0x01) {
+            return false;
+        }
+        for (uint i = 2;i<2+paddingLen;i++) {
+            if (decipher[i] != 0xff) {
+                return false;
+            }
+        }
+        if (decipher[2+paddingLen] != 0) {
+            return false;
+        }
+
+        // check digest algorithm
+
+        if (digestAlgoWithParamLen == sha256ExplicitNullParam.length) {
+            for (uint i = 0;i<digestAlgoWithParamLen;i++) {
+                if (decipher[3+paddingLen+i]!=bytes1(sha256ExplicitNullParam[i])) {
+                    return false;
+                }
+            }
+        } else {
+            for (uint i = 0;i<digestAlgoWithParamLen;i++) {
+                if (decipher[3+paddingLen+i]!=bytes1(sha256ImplicitNullParam[i])) {
+                    return false;
+                }
+            }
+        }
+
+        // check digest
+
+        if (decipher[3+paddingLen+digestAlgoWithParamLen] != 0x04
+            || decipher[4+paddingLen+digestAlgoWithParamLen] != 0x20) {
+            return false;
+        }
+
+        for (uint i = 0;i<_sha256.length;i++) {
+            if (decipher[5+paddingLen+digestAlgoWithParamLen+i]!=_sha256[i]) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /** @dev Verifies a PKCSv1.5 SHA256 signature
+      * @param _data to verify
+      * @param _s is the signature
+      * @param _e is the exponent
+      * @param _m is the modulus
+      * @return 0 if success, >0 otherwise
+    */    
+    function pkcs1Sha256Raw(
+        bytes memory _data, 
+        bytes memory _s, bytes memory _e, bytes memory _m
+    ) public view returns (bool) {
+        return pkcs1Sha256(sha256(_data),_s,_e,_m);
+    }
+}
+'''
+            modified_content = content.replace("\n", "\n" + self.addTabs())
+            f.write(modified_content)
     # print the BLS library
     def printBLSLibrary(self):
         with open(self.output_file, 'a') as f:
@@ -249,7 +376,8 @@ library BLSOpen {
     def enterPragmaDirective(self, ctx):
         if self.cryptoSignal != 2:
             with open(self.output_file, 'w') as f:
-                f.write(self.addTabs() + "pragma solidity ^0.8.18;\n")
+                f.write(self.addTabs() + "// SPDX-License-Identifier: GPL-3.0-or-later\n")
+                f.write(self.addTabs() + "pragma solidity ^0.8.19;\n")
         else:
             with open(self.output_file, 'w') as f:
                 pass
@@ -269,6 +397,8 @@ library BLSOpen {
             if self.cryptoSignal == 1:
                 if self.signatureMethod == "ECDSA":
                     self.printECDSALibrary()
+                elif self.signatureMethod == "RSA":
+                    self.printRSALibrary()
                 elif self.signatureMethod == "BLS":
                     self.printBLSLibrary()
                 elif self.signatureMethod == "Schnorr":
@@ -315,6 +445,9 @@ library BLSOpen {
                 if self.signatureMethod == "ECDSA":
                     f.write(self.addTabs() + "using ECDSA for bytes32;\n")
                     f.write(self.addTabs() + "mapping(address => uint256) public nonce;\n")
+                elif self.signatureMethod == "RSA":
+                    f.write(self.addTabs() + "using RsaVerify for *;\n")
+                    f.write(self.addTabs() + "mapping(address => uint256) public nonce;\n")
                 elif self.signatureMethod == "BLS":
                     f.write(self.addTabs() + "using BLSOpen for *;\n")
                     f.write(self.addTabs() + "mapping(address => uint256) public nonce;\n")
@@ -330,6 +463,11 @@ library BLSOpen {
                     f.write(self.addTabs() + "mapping(address => uint256) public commit;\n")
                     f.write(self.addTabs() + "function commitTo(uint256 _commitment) public {\n")
                     f.write(self.addTabs() + "\tcommit[msg.sender] = _commitment;\n")
+                    f.write(self.addTabs() + "}\n")
+                if self.commitmentMethod == "Merkle":
+                    f.write(self.addTabs() + "bytes32 public rootHash;\n")
+                    f.write(self.addTabs() + "constructor(bytes32 _rootHash) {\n")
+                    f.write(self.addTabs() + "\trootHash = _rootHash;\n")
                     f.write(self.addTabs() + "}\n")
 
     def exitContractDefinition(self, ctx):
@@ -355,6 +493,8 @@ library BLSOpen {
         if self.cryptoSignal == 1:
             if self.signatureMethod == "ECDSA":
                 output += ",bytes memory sig)"
+            elif self.signatureMethod == "RSA":
+                output += ",bytes memory signature,bytes memory exponent,bytes memory module)"
             elif self.signatureMethod == "BLS":
                 output += ",uint256[2] memory sig)"
         elif self.cryptoSignal == 2:
@@ -366,7 +506,7 @@ library BLSOpen {
             if self.commitmentMethod == "Pedersen":
                 output += ",uint256 randomness)"
             elif self.commitmentMethod == "Merkle":
-                output += ",bytes32 leaf, bytes32[] memory proof)"
+                output += ",bytes32[] memory proof)"
         else:
             output += ")"
         return output
@@ -426,19 +566,13 @@ library BLSOpen {
                     if isinstance(ctx.getChild(0).getChild(i), CryptlangParser.IdentifierContext):
                         self.signatureParams.append(ctx.getChild(0).getChild(i).getText())
                 self.cryptoSignal = 1
-            elif isinstance(ctx.getChild(0), CryptlangParser.ProofStatementContext):
-                for i in range(ctx.getChild(0).getChildCount()):
-                    if isinstance(ctx.getChild(0).getChild(i), CryptlangParser.IdentifierContext):
-                        self.proofParams.append(ctx.getChild(0).getChild(i).getText())
-                    elif isinstance(ctx.getChild(0).getChild(i), CryptlangParser.PrimaryExpressionContext):
-                        self.proofLocation = ctx.getChild(0).getChild(i).getText()                
-                # for i in range(ctx.getChild(0).privateIdentifierList().getChildCount()):
-                #     if isinstance(ctx.getChild(0).privateIdentifierList().getChild(i).getChild(0), CryptlangParser.IdentifierContext):
-                #         self.proofParams.append(ctx.getChild(0).privateIdentifierList().getChild(i).getChild(0).getText())
-                # for i in range(ctx.getChild(0).getChildCount()):
-                #     if isinstance(ctx.getChild(0).getChild(i), CryptlangParser.PrimaryExpressionContext):
-                #         self.proofLocation = ctx.getChild(0).getChild(i).getText()
-                self.cryptoSignal = 2
+            # elif isinstance(ctx.getChild(0), CryptlangParser.ProofStatementContext):
+            #     for i in range(ctx.getChild(0).getChildCount()):
+            #         if isinstance(ctx.getChild(0).getChild(i), CryptlangParser.IdentifierContext):
+            #             self.proofParams.append(ctx.getChild(0).getChild(i).getText())
+            #         elif isinstance(ctx.getChild(0).getChild(i), CryptlangParser.PrimaryExpressionContext):
+            #             self.proofLocation = ctx.getChild(0).getChild(i).getText()                
+            #     self.cryptoSignal = 2
             elif isinstance(ctx.getChild(0), CryptlangParser.CommitmentStatementContext):
                 for i in range(ctx.getChild(0).getChildCount()):
                     if isinstance(ctx.getChild(0).getChild(i), CryptlangParser.IdentifierContext):
@@ -458,7 +592,15 @@ library BLSOpen {
                         f.write("block.chainid, address(this), nonce[" + self.signatureOwner + "]));\n")
                     else:
                         # f.write("nonce[msg.sender] + address(this)))\n")
-                        f.write("msg.sender, block.chainid, address(this), nonce[msg.sender]));\n")
+                        f.write("block.chainid, address(this), nonce[msg.sender]));\n")
+                elif self.signatureMethod == "RSA":
+                    f.write(self.addTabs() + "bytes32 hash = sha256(abi.encodePacked(")
+                    for i in range(len(self.signatureParams)):
+                        f.write(self.signatureParams[i] + ", ")
+                    if self.signatureOwner != "":
+                        f.write("block.chainid, address(this), nonce[" + self.signatureOwner + "]));\n")
+                    else:
+                        f.write("block.chainid, address(this), nonce[msg.sender]));\n")
                 elif self.signatureMethod == "BLS":
                     f.write(self.addTabs() + "bytes memory hash = abi.encodePacked(" + self.hashMethod + "(abi.encodePacked(")
                     for i in range(len(self.signatureParams)):
@@ -468,7 +610,7 @@ library BLSOpen {
                         f.write("block.chainid, address(this), nonce[" + self.signatureOwner + "])));\n")
                     else:
                         # f.write("nonce[msg.sender] + address(this))));\n")
-                        f.write("msg.sender, block.chainid, address(this), nonce[msg.sender])));\n")
+                        f.write("block.chainid, address(this), nonce[msg.sender])));\n")
                     f.write(self.addTabs() + "uint256[2] memory message = BLSOpen.hashToPoint(hash);\n")
                 
                 # print the require statement depending on the signature method
@@ -477,6 +619,8 @@ library BLSOpen {
                         f.write(self.addTabs() + "require(ECDSA.recover(hash, sig) != address(0) && ECDSA.recover(hash, sig) == " + self.signatureOwner + ", \"Invalid Signature!\");\n")
                     else:
                         f.write(self.addTabs() + "require(ECDSA.recover(hash, sig) == msg.sender, \"Invalid Signature!\");\n")
+                elif self.signatureMethod == "RSA":
+                        f.write(self.addTabs() + "require(RsaVerify.pkcs1Sha256(hash, signature, exponent, module), \"Invalid Signature!\");\n")
                 elif self.signatureMethod == "BLS":
                     if self.signatureOwner != "":
                         f.write(self.addTabs() + "require(BLSOpen.verifySingle(sig, pubkey[" + self.signatureOwner + "], message), \"Invalid Signature!\");\n")
@@ -534,7 +678,7 @@ library BLSOpen {
                     f.write(self.addTabs() + "uint256 c = mulmod(Pedersen.modExp(g," + self.commitmentParams[0] + ", q),Pedersen.modExp(h, randomness, q),q);\n")
                     f.write(self.addTabs() + "require(commit[msg.sender] == c, \"Invalid Commit!\");\n")
                 elif self.commitmentMethod == "Merkle":
-                    f.write(self.addTabs() + "bytes32 computedHash = keccak256(abi.encodePacked(leaf));\n")
+                    f.write(self.addTabs() + "bytes32 computedHash = keccak256(abi.encodePacked(" + self.commitmentParams[0] + "));\n")
                     f.write(self.addTabs() + "for(uint256 i = 0; i < proof.length; i++){\n")
                     f.write(self.addTabs() + "\tif(computedHash < proof[i]){\n")
                     f.write(self.addTabs() + "\t\tcomputedHash = " + self.hashMethod + "(abi.encodePacked(computedHash, proof[i]));\n")
@@ -543,7 +687,7 @@ library BLSOpen {
                     f.write(self.addTabs() + "\t\tcomputedHash = " + self.hashMethod + "(abi.encodePacked(proof[i], computedHash));\n")
                     f.write(self.addTabs() + "\t}\n")
                     f.write(self.addTabs() + "}\n")
-                    f.write(self.addTabs() + "require(" + self.commitmentParams[0] + " == computedHash, \"Invalid Commit!\");\n")
+                    f.write(self.addTabs() + "require(rootHash == computedHash, \"Invalid Commit!\");\n")
         
     def enterOtherStatement(self, ctx):
         with open(self.output_file, 'a') as f:

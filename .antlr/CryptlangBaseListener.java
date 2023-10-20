@@ -628,18 +628,6 @@ public class CryptlangBaseListener implements CryptlangListener {
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void enterProofStatement(CryptlangParser.ProofStatementContext ctx) { }
-	/**
-	 * {@inheritDoc}
-	 *
-	 * <p>The default implementation does nothing.</p>
-	 */
-	@Override public void exitProofStatement(CryptlangParser.ProofStatementContext ctx) { }
-	/**
-	 * {@inheritDoc}
-	 *
-	 * <p>The default implementation does nothing.</p>
-	 */
 	@Override public void enterTaskStatement(CryptlangParser.TaskStatementContext ctx) { }
 	/**
 	 * {@inheritDoc}
