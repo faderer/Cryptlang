@@ -1,0 +1,6 @@
+pragma Cryptlang ^0.0.1;
+contract Verify {
+    function verify(address _owner, address _spender) public {
+        @RSA with SHA2(#_owner, _spender);
+    }
+}

@@ -32,7 +32,7 @@ contract Vote is Counting {
 	{
 		uint256 q = 21888242871839275222246405745257275088548364400416034343698204186575808495617;
 		uint256 g = 7;
-		uint256 h = uint256(sha256(abi.encodePacked(randomness)));
+		uint256 h = uint256(sha256(abi.encode(randomness)));
 		uint256 c = mulmod(Pedersen.modExp(g,_value, q),Pedersen.modExp(h, randomness, q),q);
 		require(commit[msg.sender] == c, "Invalid Commit!");
 		_count(_value);

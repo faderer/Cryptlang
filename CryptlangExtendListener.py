@@ -440,21 +440,23 @@ library BLSOpen {
 
             self.depth += 1
 
-            # if cryptoSignal == 1, print the nonce mapping
+            # if cryptoSignal == 1, print the nonces mapping
             if self.cryptoSignal == 1:
                 if self.signatureMethod == "ECDSA":
                     f.write(self.addTabs() + "using ECDSA for bytes32;\n")
-                    f.write(self.addTabs() + "mapping(address => uint256) public nonce;\n")
+                    f.write(self.addTabs() + "mapping(address => uint256) public nonces;\n")
+                    f.write(self.addTabs() + "bytes32 public constant TYPEHASH = " + self.hashMethod + "(\"Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)\");\n")
+                    f.write(self.addTabs() + "bytes32 public DOMAIN_SEPARATOR = " + self.hashMethod + "(abi.encode(" + self.hashMethod + "(\"EIP712Domain(uint256 chainId,address verifyingContract)\"),block.chainid,address(this)));\n")
                 elif self.signatureMethod == "RSA":
                     f.write(self.addTabs() + "using RsaVerify for *;\n")
-                    f.write(self.addTabs() + "mapping(address => uint256) public nonce;\n")
+                    f.write(self.addTabs() + "mapping(address => uint256) public nonces;\n")
                 elif self.signatureMethod == "BLS":
                     f.write(self.addTabs() + "using BLSOpen for *;\n")
-                    f.write(self.addTabs() + "mapping(address => uint256) public nonce;\n")
+                    f.write(self.addTabs() + "mapping(address => uint256) public nonces;\n")
                     f.write(self.addTabs() + "mapping (address => uint256[4]) public pubkey;\n")
                 elif self.signatureMethod == "Schnorr":
                     f.write(self.addTabs() + "using Schnorr for *;\n")
-                    f.write(self.addTabs() + "mapping(address => uint256) public nonce;\n")
+                    f.write(self.addTabs() + "mapping(address => uint256) public nonces;\n")
 
             # if cryptoSignal == 3, print the commitment library
             elif self.cryptoSignal == 3:
@@ -492,7 +494,7 @@ library BLSOpen {
         # if cryptoSignal == 1, print the signature parameter. Otherwise, print the proof parameter
         if self.cryptoSignal == 1:
             if self.signatureMethod == "ECDSA":
-                output += ",bytes memory sig)"
+                output += ",uint256 deadline,uint8 v,bytes32 r,bytes32 s)"
             elif self.signatureMethod == "RSA":
                 output += ",bytes memory signature,bytes memory exponent,bytes memory module)"
             elif self.signatureMethod == "BLS":
@@ -582,43 +584,44 @@ library BLSOpen {
         # if cryptoSignal == 1, print the signature statement depending on the signature method
         elif self.cryptoSignal == 1:
             with open(self.output_file, 'a') as f:
-                # print the hash of the signature parameters, nonce and address of the contract
+                # print the hash of the signature parameters, nonces and address of the contract
                 if self.signatureMethod == "ECDSA":
-                    f.write(self.addTabs() + "bytes32 hash = " + self.hashMethod + "(abi.encodePacked(")
+                    f.write(self.addTabs() + "require(deadline>=block.timestamp,\"Expired deadline!\");\n")
+                    f.write(self.addTabs() + "bytes32 hash = " + self.hashMethod + "(abi.encodePacked(\'\\x19\\x01\',DOMAIN_SEPARATOR," + self.hashMethod + "(abi.encodePacked(TYPEHASH, ")
                     for i in range(len(self.signatureParams)):
                         f.write(self.signatureParams[i] + ", ")
                     if self.signatureOwner != "":
-                        # f.write("nonce[" + self.signatureOwner + "], address(this)));\n")
-                        f.write("block.chainid, address(this), nonce[" + self.signatureOwner + "]));\n")
+                        # f.write("nonces[" + self.signatureOwner + "], address(this)));\n")
+                        f.write("nonces[" + self.signatureOwner + "]++, deadline))));\n")
                     else:
-                        # f.write("nonce[msg.sender] + address(this)))\n")
-                        f.write("block.chainid, address(this), nonce[msg.sender]));\n")
+                        # f.write("nonces[msg.sender] + address(this)))\n")
+                        f.write("nonces[msg.sender]++, deadline))));\n")
                 elif self.signatureMethod == "RSA":
                     f.write(self.addTabs() + "bytes32 hash = sha256(abi.encodePacked(")
                     for i in range(len(self.signatureParams)):
                         f.write(self.signatureParams[i] + ", ")
                     if self.signatureOwner != "":
-                        f.write("block.chainid, address(this), nonce[" + self.signatureOwner + "]));\n")
+                        f.write("block.chainid, address(this), nonces[" + self.signatureOwner + "]));\n")
                     else:
-                        f.write("block.chainid, address(this), nonce[msg.sender]));\n")
+                        f.write("block.chainid, address(this), nonces[msg.sender]));\n")
                 elif self.signatureMethod == "BLS":
                     f.write(self.addTabs() + "bytes memory hash = abi.encodePacked(" + self.hashMethod + "(abi.encodePacked(")
                     for i in range(len(self.signatureParams)):
                         f.write(self.signatureParams[i] + ", ")
                     if self.signatureOwner != "":
-                        # f.write("nonce[" + self.signatureOwner + "], address(this))));\n")
-                        f.write("block.chainid, address(this), nonce[" + self.signatureOwner + "])));\n")
+                        # f.write("nonces[" + self.signatureOwner + "], address(this))));\n")
+                        f.write("block.chainid, address(this), nonces[" + self.signatureOwner + "])));\n")
                     else:
-                        # f.write("nonce[msg.sender] + address(this))));\n")
-                        f.write("block.chainid, address(this), nonce[msg.sender])));\n")
+                        # f.write("nonces[msg.sender] + address(this))));\n")
+                        f.write("block.chainid, address(this), nonces[msg.sender])));\n")
                     f.write(self.addTabs() + "uint256[2] memory message = BLSOpen.hashToPoint(hash);\n")
                 
                 # print the require statement depending on the signature method
                 if self.signatureMethod == "ECDSA":
                     if self.signatureOwner != "":
-                        f.write(self.addTabs() + "require(ECDSA.recover(hash, sig) != address(0) && ECDSA.recover(hash, sig) == " + self.signatureOwner + ", \"Invalid Signature!\");\n")
+                        f.write(self.addTabs() + "require(ECDSA.recover(hash, v, r, s) != address(0) && ECDSA.recover(hash, v, r, s) == " + self.signatureOwner + ", \"Invalid Signature!\");\n")
                     else:
-                        f.write(self.addTabs() + "require(ECDSA.recover(hash, sig) == msg.sender, \"Invalid Signature!\");\n")
+                        f.write(self.addTabs() + "require(ECDSA.recover(hash, v, r, s) != address(0) && ECDSA.recover(hash, v, r, s) == msg.sender, \"Invalid Signature!\");\n")
                 elif self.signatureMethod == "RSA":
                         f.write(self.addTabs() + "require(RsaVerify.pkcs1Sha256(hash, signature, exponent, module), \"Invalid Signature!\");\n")
                 elif self.signatureMethod == "BLS":
@@ -627,11 +630,11 @@ library BLSOpen {
                     else:
                         f.write(self.addTabs() + "require(BLSOpen.verifySingle(sig, pubkey[msg.sender], message), \"Invalid Signature!\");\n")
                 
-                # update the nonce
-                if self.signatureOwner != "":
-                    f.write(self.addTabs() + "nonce[" + self.signatureOwner + "]++;\n")
-                else:
-                    f.write(self.addTabs() + "nonce[msg.sender]++;\n")
+                # update the nonces
+                # if self.signatureOwner != "":
+                #     f.write(self.addTabs() + "nonces[" + self.signatureOwner + "]++;\n")
+                # else:
+                #     f.write(self.addTabs() + "nonces[msg.sender]++;\n")
                 self.cryptoSignal = 0
 
         # if cryptoSignal == 2, print the proof statement
