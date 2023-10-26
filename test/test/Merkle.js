@@ -26,15 +26,28 @@ describe("Search", function() {
         const Search = await ethers.getContractFactory("Search");
         // root is pre-committed to the contract
         const search = await Search.deploy(root);
-        return { search,_leaf,proof };
+        const SearchREF = await ethers.getContractFactory("SearchREF");
+        const searchref = await SearchREF.deploy();
+        return { search,searchref,root,_leaf,proof };
     }
     describe("search", function(){
         it("Shouldn't fail if upload the right value", async function () {
             const { search,_leaf,proof } = await loadFixture(
                 deploySearchFixture
             );
-            // 'a' is the image of the _leaf to reveal
-            await expect(search.search('a',proof)).to.not.be.reverted;
+            // 'a' is the image of the _leaf to reveal'
+            const image = 'a';
+            await expect(search.search(image,proof)).to.not.be.reverted;
+        });
+    });
+    describe("searchref", function(){
+        it("Shouldn't fail if upload the right value", async function () {
+            const { searchref,root,_leaf,proof } = await loadFixture(
+                deploySearchFixture
+            );
+            // 'a' is the image of the _leaf to reveal'
+            const image = 'a';
+            await expect(searchref.searchref(root,_leaf,proof)).to.not.be.reverted;
         });
     });
     // add the test for the keccak256

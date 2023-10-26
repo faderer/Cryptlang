@@ -121,7 +121,7 @@ library RsaVerify {
         return pkcs1Sha256(sha256(_data),_s,_e,_m);
     }
 }
-contract RSAVer {
+contract RSAVerREF {
 	using RsaVerify for *;
 	mapping(address => uint256) public nonces;
     bytes32 public constant TYPEHASH = keccak256("Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)");
@@ -129,7 +129,29 @@ contract RSAVer {
 	function rsaver (address _owner,address _spender,uint256 deadline,bytes memory signature, bytes memory exponent, bytes memory module) public
 	{
 		require(deadline>=block.timestamp,"Expired deadline!");
-        bytes32 hash = sha256(abi.encode('\x19\x01',DOMAIN_SEPARATOR,sha256(abi.encode(TYPEHASH, _owner, _spender, nonces[_owner]++, deadline))));
-		require(RsaVerify.pkcs1Sha256(hash, signature, exponent, module), "Invalid Signature!");
+        unchecked {
+            bool result = RsaVerify.pkcs1Sha256(
+                sha256(
+                    abi.encode(
+                        "\x19\x01",
+                        DOMAIN_SEPARATOR,
+                        sha256(
+                            abi.encode(
+                                TYPEHASH,
+                                _owner,
+                                _spender,
+                                nonces[_owner]++,
+                                deadline
+                            )
+                        )
+                    )
+                ),
+                signature, 
+                exponent, 
+                module
+            );
+
+            require(result, "Invalid Signature!");
+        }
 	}
 }

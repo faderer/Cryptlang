@@ -1,0 +1,14 @@
+pragma Cryptlang ^0.0.1;
+import {IERC20, SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {MerkleProof} from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
+import {Distributor} from "./Distributor.sol";
+
+contract MerkleDistributor is Distributor{
+    using SafeERC20 for IERC20;
+    function claim(uint256 _index, address _account, uint256 _amount) public virtual {
+        require(!isClaimed(index), "Already Claimed!");
+        @Merkle with SHA3(_index, _account, _amount);
+        _setClaimed(index);
+        IERC20(token).safeTransfer(account, amount);
+    }
+}

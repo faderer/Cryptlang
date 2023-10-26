@@ -1,5 +1,6 @@
 pragma Cryptlang ^0.0.1;
 import { ERC20 } from "./ERC20.sol";
+import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol" ;
 contract ERC20Permit is ERC20 {
     function permit(address _owner, address _spender, uint256 _value, uint256 _deadline) public {
         require(_deadline >= block.timestamp, "ERC20Permit: expired deadline");

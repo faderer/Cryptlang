@@ -1,6 +1,0 @@
-pragma Cryptlang ^0.0.1;
-contract Search{
-    function search(bytes32 _leaf) public view {
-        @Merkle with SHA2(_leaf);
-    }
-}

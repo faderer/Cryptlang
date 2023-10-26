@@ -377,7 +377,7 @@ library BLSOpen {
         if self.cryptoSignal != 2:
             with open(self.output_file, 'w') as f:
                 f.write(self.addTabs() + "// SPDX-License-Identifier: GPL-3.0-or-later\n")
-                f.write(self.addTabs() + "pragma solidity ^0.8.19;\n")
+                f.write(self.addTabs() + "pragma solidity ^0.8.20;\n")
         else:
             with open(self.output_file, 'w') as f:
                 pass
@@ -390,6 +390,8 @@ library BLSOpen {
                     f.write(ctx.getChild(i).getText() + "\n")
                 else:
                     f.write(ctx.getChild(i).getText() + " ")
+            if self.commitmentMethod == "Merkle":
+                f.write(self.addTabs() + "import { MerkleProof } from \"@openzeppelin/contracts/utils/cryptography/MerkleProof.sol\" ;\n")
     
     def enterContractDefinition(self, ctx):
         with open(self.output_file, 'a') as f:
@@ -467,9 +469,9 @@ library BLSOpen {
                     f.write(self.addTabs() + "\tcommit[msg.sender] = _commitment;\n")
                     f.write(self.addTabs() + "}\n")
                 if self.commitmentMethod == "Merkle":
-                    f.write(self.addTabs() + "bytes32 public rootHash;\n")
-                    f.write(self.addTabs() + "constructor(bytes32 _rootHash) {\n")
-                    f.write(self.addTabs() + "\trootHash = _rootHash;\n")
+                    f.write(self.addTabs() + "bytes32 public merkleRoot;\n")
+                    f.write(self.addTabs() + "constructor(bytes32 merkleRoot_) {\n")
+                    f.write(self.addTabs() + "\tmerkleRoot = merkleRoot_;\n")
                     f.write(self.addTabs() + "}\n")
 
     def exitContractDefinition(self, ctx):
@@ -508,7 +510,7 @@ library BLSOpen {
             if self.commitmentMethod == "Pedersen":
                 output += ",uint256 randomness)"
             elif self.commitmentMethod == "Merkle":
-                output += ",bytes32[] memory proof)"
+                output += ",bytes32[] calldata merkleProof)"
         else:
             output += ")"
         return output
@@ -681,16 +683,8 @@ library BLSOpen {
                     f.write(self.addTabs() + "uint256 c = mulmod(Pedersen.modExp(g," + self.commitmentParams[0] + ", q),Pedersen.modExp(h, randomness, q),q);\n")
                     f.write(self.addTabs() + "require(commit[msg.sender] == c, \"Invalid Commit!\");\n")
                 elif self.commitmentMethod == "Merkle":
-                    f.write(self.addTabs() + "bytes32 computedHash = keccak256(abi.encodePacked(" + self.commitmentParams[0] + "));\n")
-                    f.write(self.addTabs() + "for(uint256 i = 0; i < proof.length; i++){\n")
-                    f.write(self.addTabs() + "\tif(computedHash < proof[i]){\n")
-                    f.write(self.addTabs() + "\t\tcomputedHash = " + self.hashMethod + "(abi.encodePacked(computedHash, proof[i]));\n")
-                    f.write(self.addTabs() + "\t}\n")
-                    f.write(self.addTabs() + "\telse{\n")
-                    f.write(self.addTabs() + "\t\tcomputedHash = " + self.hashMethod + "(abi.encodePacked(proof[i], computedHash));\n")
-                    f.write(self.addTabs() + "\t}\n")
-                    f.write(self.addTabs() + "}\n")
-                    f.write(self.addTabs() + "require(rootHash == computedHash, \"Invalid Commit!\");\n")
+                    f.write(self.addTabs() + "bytes32 node = " + self.hashMethod + "(abi.encodePacked(" + ",".join(self.commitmentParams) + "));\n")
+                    f.write(self.addTabs() + "require(MerkleProof.verify(merkleProof, merkleRoot, node), \"Invalid MerkleProof!\");\n")
         
     def enterOtherStatement(self, ctx):
         with open(self.output_file, 'a') as f:
